@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payroll - TeamRoll</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="nav-brand">
+                <h1>TeamRoll</h1>
+                <span class="tagline">Payroll Management</span>
+            </div>
+            <nav class="nav-menu">
+                <a href="/" class="nav-link">Home</a>
+                <a href="/dashboard" class="nav-link">Dashboard</a>
+                <a href="/employees" class="nav-link">Employees</a>
+                <a href="/payroll" class="nav-link active">Payroll</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="container">
+            <div class="page-header">
+                <h2>Payroll Processing</h2>
+                <button class="btn btn-primary" onclick="showProcessPayrollForm()">Process New Payroll</button>
+            </div>
+
+            <!-- Process Payroll Form -->
+            <div id="process-payroll-form" class="form-modal" style="display: none;">
+                <div class="form-container">
+                    <div class="form-header">
+                        <h3>Process Payroll</h3>
+                        <button class="close-btn" onclick="hideProcessPayrollForm()">&times;</button>
+                    </div>
+                    <form id="payroll-form" onsubmit="processPayroll(event)">
+                        <div class="form-group">
+                            <label for="employee_select">Select Employee</label>
+                            <select id="employee_select" name="employee_id" required>
+                                <option value="">Choose an employee...</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="pay_period_start">Pay Period Start</label>
+                                <input type="date" id="pay_period_start" name="pay_period_start" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="pay_period_end">Pay Period End</label>
+                                <input type="date" id="pay_period_end" name="pay_period_end" required>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="base_salary">Base Salary</label>
+                                <input type="number" id="base_salary" name="base_salary" step="0.01" required readonly>
+                            </div>
+                            <div class="form-group">
+                                <label for="bonuses">Bonuses</label>
+                                <input type="number" id="bonuses" name="bonuses" step="0.01" value="0">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="deductions">Other Deductions</label>
+                            <input type="number" id="deductions" name="deductions" step="0.01" value="0">
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-secondary" onclick="hideProcessPayrollForm()">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Process Payroll</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Payroll Summary -->
+            <div class="payroll-section">
+                <h3>Current Month Summary</h3>
+                <div class="payroll-summary" id="payroll-summary">
+                    <div class="loading">Loading payroll data...</div>
+                </div>
+            </div>
+
+            <!-- Recent Payrolls -->
+            <div class="payroll-section">
+                <h3>Recent Payroll Records</h3>
+                <div class="payroll-records" id="payroll-records">
+                    <div class="loading">Loading records...</div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let employeesData = [];
+
+        // Show/hide process payroll form
+        function showProcessPayrollForm() {
+            loadEmployeesForPayroll();
+            document.getElementById('process-payroll-form').style.display = 'flex';
+        }
+
+        function hideProcessPayrollForm() {
+            document.getElementById('process-payroll-form').style.display = 'none';
+            document.getElementById('payroll-form').reset();
+        }
+
+        // Load employees for payroll dropdown
+        async function loadEmployeesForPayroll() {
+            try {
+                const response = await fetch('/api/employees');
+                const data = await response.json();
+                
+                if (data.success) {
+                    employeesData = data.employees;
+                    const select = document.getElementById('employee_select');
+                    select.innerHTML = '<option value="">Choose an employee...</option>';
+                    
+                    data.employees.forEach(employee => {
+                        const option = document.createElement('option');
+                        option.value = employee.employee_id;
+                        option.textContent = `${employee.first_name} ${employee.last_name} - ${employee.position}`;
+                        option.dataset.salary = employee.base_salary;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading employees:', error);
+            }
+        }
+
+        // Update base salary when employee is selected
+        document.addEventListener('change', function(event) {
+            if (event.target.id === 'employee_select') {
+                const selectedOption = event.target.selectedOptions[0];
+                const salary = selectedOption.dataset.salary || '';
+                document.getElementById('base_salary').value = salary;
+            }
+        });
+
+        // Process payroll
+        async function processPayroll(event) {
+            event.preventDefault();
+            
+            const formData = new FormData(event.target);
+            const payrollData = Object.fromEntries(formData.entries());
+            
+            try {
+                const response = await fetch('/api/payroll/process', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payrollData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('Payroll processed successfully!');
+                    hideProcessPayrollForm();
+                    loadPayrollData();
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            } catch (error) {
+                alert('Error processing payroll: ' + error.message);
+            }
+        }
+
+        // Load payroll data
+        async function loadPayrollData() {
+            try {
+                const response = await fetch('/api/payroll');
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayPayrollSummary(data.summary);
+                    displayPayrollRecords(data.records);
+                } else {
+                    document.getElementById('payroll-summary').innerHTML = 
+                        '<div class="error">Error loading payroll data: ' + data.message + '</div>';
+                }
+            } catch (error) {
+                document.getElementById('payroll-summary').innerHTML = 
+                    '<div class="error">Error loading payroll data: ' + error.message + '</div>';
+            }
+        }
+
+        // Display payroll summary
+        function displayPayrollSummary(summary) {
+            const container = document.getElementById('payroll-summary');
+            container.innerHTML = `
+                <div class="summary-grid">
+                    <div class="summary-item">
+                        <h4>Total Employees</h4>
+                        <p class="summary-value">${summary.total_employees}</p>
+                    </div>
+                    <div class="summary-item">
+                        <h4>Gross Pay</h4>
+                        <p class="summary-value">$${summary.total_gross_pay.toFixed(2)}</p>
+                    </div>
+                    <div class="summary-item">
+                        <h4>Tax Deductions</h4>
+                        <p class="summary-value">$${summary.total_tax_deductions.toFixed(2)}</p>
+                    </div>
+                    <div class="summary-item">
+                        <h4>Net Pay</h4>
+                        <p class="summary-value">$${summary.total_net_pay.toFixed(2)}</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Display payroll records
+        function displayPayrollRecords(records) {
+            const container = document.getElementById('payroll-records');
+            
+            if (records.length === 0) {
+                container.innerHTML = '<div class="empty-state">No payroll records found. Process your first payroll to get started!</div>';
+                return;
+            }
+            
+            const recordsHtml = records.map(record => `
+                <div class="payroll-record">
+                    <div class="record-employee">
+                        <h4>${record.first_name} ${record.last_name}</h4>
+                        <p>${record.position}</p>
+                    </div>
+                    <div class="record-period">
+                        <p><strong>Pay Period:</strong></p>
+                        <p>${record.pay_period_start} to ${record.pay_period_end}</p>
+                    </div>
+                    <div class="record-amounts">
+                        <p><strong>Gross:</strong> $${parseFloat(record.gross_pay).toFixed(2)}</p>
+                        <p><strong>Taxes:</strong> $${parseFloat(record.tax_deductions).toFixed(2)}</p>
+                        <p><strong>Net:</strong> $${parseFloat(record.net_pay).toFixed(2)}</p>
+                    </div>
+                    <div class="record-status">
+                        <span class="status-badge status-${record.status}">${record.status}</span>
+                    </div>
+                </div>
+            `).join('');
+            
+            container.innerHTML = recordsHtml;
+        }
+
+        // Filter employees (for future use)
+        function filterEmployees() {
+            // Implementation for filtering payroll records
+        }
+
+        // Load data when page loads
+        document.addEventListener('DOMContentLoaded', loadPayrollData);
+    </script>
+</body>
+</html>

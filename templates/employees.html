@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employees - TeamRoll</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="nav-brand">
+                <h1>TeamRoll</h1>
+                <span class="tagline">Employee Management</span>
+            </div>
+            <nav class="nav-menu">
+                <a href="/" class="nav-link">Home</a>
+                <a href="/dashboard" class="nav-link">Dashboard</a>
+                <a href="/employees" class="nav-link active">Employees</a>
+                <a href="/payroll" class="nav-link">Payroll</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="container">
+            <div class="page-header">
+                <h2>Employee Management</h2>
+                <button class="btn btn-primary" onclick="showAddEmployeeForm()">Add New Employee</button>
+            </div>
+
+            <!-- Add Employee Form -->
+            <div id="add-employee-form" class="form-modal" style="display: none;">
+                <div class="form-container">
+                    <div class="form-header">
+                        <h3>Add New Employee</h3>
+                        <button class="close-btn" onclick="hideAddEmployeeForm()">&times;</button>
+                    </div>
+                    <form id="employee-form" onsubmit="addEmployee(event)">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="first_name">First Name</label>
+                                <input type="text" id="first_name" name="first_name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="last_name">Last Name</label>
+                                <input type="text" id="last_name" name="last_name" required>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="email">Email</label>
+                                <input type="email" id="email" name="email" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="phone">Phone</label>
+                                <input type="tel" id="phone" name="phone">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="position">Position</label>
+                                <input type="text" id="position" name="position" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="department">Department</label>
+                                <input type="text" id="department" name="department">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="hire_date">Hire Date</label>
+                                <input type="date" id="hire_date" name="hire_date" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="base_salary">Base Salary</label>
+                                <input type="number" id="base_salary" name="base_salary" step="0.01" required>
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-secondary" onclick="hideAddEmployeeForm()">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Add Employee</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Employee List -->
+            <div class="employees-section">
+                <div class="section-header">
+                    <h3>Employee Directory</h3>
+                    <div class="search-box">
+                        <input type="text" id="search-input" placeholder="Search employees..." onkeyup="filterEmployees()">
+                    </div>
+                </div>
+                
+                <div class="employees-grid" id="employees-list">
+                    <div class="loading">Loading employees...</div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let employees = [];
+
+        // Show/hide add employee form
+        function showAddEmployeeForm() {
+            document.getElementById('add-employee-form').style.display = 'flex';
+        }
+
+        function hideAddEmployeeForm() {
+            document.getElementById('add-employee-form').style.display = 'none';
+            document.getElementById('employee-form').reset();
+        }
+
+        // Add new employee
+        async function addEmployee(event) {
+            event.preventDefault();
+            
+            const formData = new FormData(event.target);
+            const employeeData = Object.fromEntries(formData.entries());
+            
+            try {
+                const response = await fetch('/api/employees', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(employeeData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('Employee added successfully!');
+                    hideAddEmployeeForm();
+                    loadEmployees();
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            } catch (error) {
+                alert('Error adding employee: ' + error.message);
+            }
+        }
+
+        // Load employees from API
+        async function loadEmployees() {
+            try {
+                const response = await fetch('/api/employees');
+                const data = await response.json();
+                
+                if (data.success) {
+                    employees = data.employees;
+                    displayEmployees(employees);
+                } else {
+                    document.getElementById('employees-list').innerHTML = 
+                        '<div class="error">Error loading employees: ' + data.message + '</div>';
+                }
+            } catch (error) {
+                document.getElementById('employees-list').innerHTML = 
+                    '<div class="error">Error loading employees: ' + error.message + '</div>';
+            }
+        }
+
+        // Display employees
+        function displayEmployees(employeeList) {
+            const container = document.getElementById('employees-list');
+            
+            if (employeeList.length === 0) {
+                container.innerHTML = '<div class="empty-state">No employees found. Add your first employee to get started!</div>';
+                return;
+            }
+            
+            const employeeCards = employeeList.map(employee => `
+                <div class="employee-card">
+                    <div class="employee-avatar">
+                        ${employee.first_name.charAt(0)}${employee.last_name.charAt(0)}
+                    </div>
+                    <div class="employee-info">
+                        <h4>${employee.first_name} ${employee.last_name}</h4>
+                        <p class="employee-position">${employee.position}</p>
+                        <p class="employee-department">${employee.department || 'No Department'}</p>
+                        <p class="employee-email">${employee.email}</p>
+                        <p class="employee-salary">$${parseFloat(employee.base_salary).toFixed(2)}/month</p>
+                    </div>
+                    <div class="employee-actions">
+                        <button class="btn btn-small btn-secondary" onclick="viewEmployee('${employee.employee_id}')">View</button>
+                        <button class="btn btn-small btn-primary" onclick="processPayroll('${employee.employee_id}')">Payroll</button>
+                    </div>
+                </div>
+            `).join('');
+            
+            container.innerHTML = employeeCards;
+        }
+
+        // Filter employees
+        function filterEmployees() {
+            const searchTerm = document.getElementById('search-input').value.toLowerCase();
+            const filteredEmployees = employees.filter(employee => 
+                employee.first_name.toLowerCase().includes(searchTerm) ||
+                employee.last_name.toLowerCase().includes(searchTerm) ||
+                employee.position.toLowerCase().includes(searchTerm) ||
+                employee.email.toLowerCase().includes(searchTerm)
+            );
+            displayEmployees(filteredEmployees);
+        }
+
+        function viewEmployee(employeeId) {
+            alert(`View employee details for ID: ${employeeId}`);
+        }
+
+        function processPayroll(employeeId) {
+            window.location.href = `/payroll?employee=${employeeId}`;
+        }
+
+        // Load employees when page loads
+        document.addEventListener('DOMContentLoaded', loadEmployees);
+    </script>
+</body>
+</html>
