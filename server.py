@@ -131,10 +131,10 @@ class TeamRollHandler(BaseHTTPRequestHandler):
         response = json.dumps(data, indent=2)
         self.wfile.write(response.encode('utf-8'))
 
-def run_server(port=8080):
-    """Start the TeamRoll server"""
-    server_address = ('', port)
-    httpd = HTTPServer(server_address, TeamRollHandler)
+    def run_server(port=8080):
+        """Start the TeamRoll server"""
+    server_address = ('', port) #type:ignore
+    httpd = HTTPServer(server_address, TeamRollHandler) # type:ignore
     
     print(f"TeamRoll server running on http://localhost:{port}")
     print("Press Ctrl+C to stop the server")
@@ -145,9 +145,9 @@ def run_server(port=8080):
         print("\nServer stopped.")
         httpd.server_close()
 
-if __name__ == '__main__':
+    if __name__ == '__main__':
     # Initialize database
-    from modules.database import init_database
+        from modules.database import init_database
     init_database()
     
     # Start server
