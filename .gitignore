@@ -1,2 +1,29 @@
-node_modules/
+# Ignore Python bytecode files
+modules\__pycache__
+__pycache__/
+*.pyc
+*.pyo
+it_support_bert_results/
+*.csv
+it_support_model/
+results/
+mainapp.py
+training_bert_gpu.py
+benchmark.py
+cudatest.py
+sentiment_training.py
+
+# Ignore virtual environment folder
+venv/
+
+# Ignore IDE/editor config files
+.idea/
+.vscode/
+
+# Ignore macOS specific files
+.DS_Store
+
+*.db
 .env
+*.sqlite3
+*.log
