@@ -13,6 +13,7 @@ from modules.hr_service import HRService
 from modules.payroll_service import PayrollService
 from modules.accounting_service import AccountingService
 
+
 class TeamRollHandler(BaseHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         self.hr_service = HRService()
@@ -21,48 +22,41 @@ class TeamRollHandler(BaseHTTPRequestHandler):
         super().__init__(*args, **kwargs)
 
     def do_GET(self):
-        """Handle GET requests"""
         parsed_path = urlparse(self.path)
         path = parsed_path.path
-        
-        # Serve static files
+
         if path.startswith('/static/'):
             self.serve_static_file(path)
-        # API endpoints
         elif path.startswith('/api/'):
             self.handle_api_get(path)
-        # Serve HTML templates
         else:
             self.serve_template(path)
 
     def do_POST(self):
-        """Handle POST requests"""
         parsed_path = urlparse(self.path)
         path = parsed_path.path
-        
+
         if path.startswith('/api/'):
             self.handle_api_post(path)
         else:
             self.send_error(404)
 
     def serve_static_file(self, path):
-        """Serve CSS, JS, and other static files"""
-        file_path = path[1:]  # Remove leading slash
-        
+        file_path = path[1:]
+
         if os.path.exists(file_path):
             content_type = 'text/css' if path.endswith('.css') else 'text/plain'
-            
+
             self.send_response(200)
             self.send_header('Content-type', content_type)
             self.end_headers()
-            
+
             with open(file_path, 'rb') as f:
                 self.wfile.write(f.read())
         else:
             self.send_error(404)
 
     def serve_template(self, path):
-        """Serve HTML templates"""
         if path == '/' or path == '/index.html':
             template_path = 'templates/index.html'
         elif path == '/dashboard':
@@ -79,14 +73,13 @@ class TeamRollHandler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header('Content-type', 'text/html')
             self.end_headers()
-            
+
             with open(template_path, 'rb') as f:
                 self.wfile.write(f.read())
         else:
             self.send_error(404)
 
     def handle_api_get(self, path):
-        """Handle API GET requests"""
         try:
             if path == '/api/employees':
                 employees = self.hr_service.get_all_employees()
@@ -104,12 +97,11 @@ class TeamRollHandler(BaseHTTPRequestHandler):
             self.send_json_response({'error': str(e)}, 500)
 
     def handle_api_post(self, path):
-        """Handle API POST requests"""
         try:
             content_length = int(self.headers['Content-Length'])
             post_data = self.rfile.read(content_length)
             data = json.loads(post_data.decode('utf-8'))
-            
+
             if path == '/api/employees':
                 result = self.hr_service.add_employee(data)
                 self.send_json_response(result)
@@ -122,33 +114,32 @@ class TeamRollHandler(BaseHTTPRequestHandler):
             self.send_json_response({'error': str(e)}, 500)
 
     def send_json_response(self, data, status=200):
-        """Send JSON response"""
         self.send_response(status)
         self.send_header('Content-type', 'application/json')
         self.send_header('Access-Control-Allow-Origin', '*')
         self.end_headers()
-        
+
         response = json.dumps(data, indent=2)
         self.wfile.write(response.encode('utf-8'))
 
-    def run_server(port=8080):
-        """Start the TeamRoll server"""
-    server_address = ('', port) #type:ignore
-    httpd = HTTPServer(server_address, TeamRollHandler) # type:ignore
-    
+
+def run_server(port=8080):
+    """Start the TeamRoll server"""
+    server_address = ('', port)
+    httpd = HTTPServer(server_address, TeamRollHandler)
+
     print(f"TeamRoll server running on http://localhost:{port}")
     print("Press Ctrl+C to stop the server")
-    
+
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
         print("\nServer stopped.")
         httpd.server_close()
 
-    if __name__ == '__main__':
-    # Initialize database
-        from modules.database import init_database
+
+if __name__ == '__main__':
+    from modules.database import init_database
     init_database()
-    
-    # Start server
+
     run_server()
