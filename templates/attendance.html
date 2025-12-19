@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance - TeamRoll</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="nav-brand">
+                <h1>TeamRoll</h1>
+                <span class="tagline">Attendance Tracking</span>
+            </div>
+            <nav class="nav-menu">
+                <a href="/" class="nav-link">Home</a>
+                <a href="/dashboard" class="nav-link">Dashboard</a>
+                <a href="/employees" class="nav-link">Employees</a>
+                <a href="/payroll" class="nav-link">Payroll</a>
+                <a href="/attendance" class="nav-link active">Attendance</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="container">
+            <div class="page-header">
+                <h2>Attendance Management</h2>
+                <div class="date-selector">
+                    <input type="date" id="date-filter" class="form-input" style="width: auto;">
+                    <button class="btn btn-primary" onclick="loadAttendanceByDate()">View Date</button>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="payroll-section">
+                <h3>Quick Actions</h3>
+                <div class="quick-actions-attendance">
+                    <button class="btn btn-primary btn-large" onclick="showCheckInModal()">Check In</button>
+                    <button class="btn btn-secondary btn-large" onclick="showCheckOutModal()">Check Out</button>
+                    <button class="btn btn-outline" style="color: var(--dark); border-color: var(--dark); padding: 1rem 2rem; font-size: 1.1rem; font-weight: 600;" onclick="showMarkLeaveModal()">Mark Leave</button>
+                </div>
+            </div>
+
+            <!-- Today's Summary -->
+            <div class="payroll-section">
+                <h3>Today's Attendance Summary</h3>
+                <div class="summary-grid" id="attendance-summary">
+                    <div class="loading">Loading attendance data...</div>
+                </div>
+            </div>
+
+            <!-- Attendance List -->
+            <div class="payroll-section">
+                <h3>Employee Attendance Records</h3>
+                <div class="search-box" style="margin-bottom: 1rem;">
+                    <input type="text" id="search-input" placeholder="Search employees..." onkeyup="filterAttendance()">
+                </div>
+
+                <div id="attendance-list">
+                    <div class="loading">Loading records...</div>
+                </div>
+            </div>
+
+            <!-- Absent Employees -->
+            <div class="payroll-section" id="absent-section" style="display: none;">
+                <h3>Absent Employees</h3>
+                <div id="absent-list"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Check-In Modal -->
+    <div id="checkin-modal" class="form-modal" style="display: none;">
+        <div class="form-container" style="max-width: 400px;">
+            <div class="form-header">
+                <h3>Check In</h3>
+                <button class="close-btn" onclick="hideCheckInModal()">&times;</button>
+            </div>
+            <form id="checkin-form" onsubmit="checkIn(event)">
+                <div class="form-group">
+                    <label for="checkin_employee">Select Employee</label>
+                    <select id="checkin_employee" name="employee_id" required>
+                        <option value="">Choose an employee...</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="hideCheckInModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Check In</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Check-Out Modal -->
+    <div id="checkout-modal" class="form-modal" style="display: none;">
+        <div class="form-container" style="max-width: 400px;">
+            <div class="form-header">
+                <h3>Check Out</h3>
+                <button class="close-btn" onclick="hideCheckOutModal()">&times;</button>
+            </div>
+            <form id="checkout-form" onsubmit="checkOut(event)">
+                <div class="form-group">
+                    <label for="checkout_employee">Select Employee</label>
+                    <select id="checkout_employee" name="employee_id" required>
+                        <option value="">Choose an employee...</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="hideCheckOutModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Check Out</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Mark Leave Modal -->
+    <div id="leave-modal" class="form-modal" style="display: none;">
+        <div class="form-container" style="max-width: 400px;">
+            <div class="form-header">
+                <h3>Mark Leave</h3>
+                <button class="close-btn" onclick="hideMarkLeaveModal()">&times;</button>
+            </div>
+            <form id="leave-form" onsubmit="markLeave(event)">
+                <div class="form-group">
+                    <label for="leave_employee">Select Employee</label>
+                    <select id="leave_employee" name="employee_id" required>
+                        <option value="">Choose an employee...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="leave_date">Date</label>
+                    <input type="date" id="leave_date" name="date" required>
+                </div>
+                <div class="form-group">
+                    <label for="leave_type">Leave Type</label>
+                    <select id="leave_type" name="leave_type" required>
+                        <option value="">Select type...</option>
+                        <option value="sick">Sick Leave</option>
+                        <option value="vacation">Vacation</option>
+                        <option value="personal">Personal Leave</option>
+                        <option value="unpaid">Unpaid Leave</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="hideMarkLeaveModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Mark Leave</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <style>
+        .date-selector {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .quick-actions-attendance {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .attendance-record {
+            display: grid;
+            grid-template-columns: 2fr 1.5fr 1.5fr 1fr 1fr;
+            gap: 1rem;
+            padding: 1.5rem;
+            background: #f8fafc;
+            border-radius: 8px;
+            border: 2px solid #e2e8f0;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .record-employee h4 {
+            color: #1e293b;
+            margin-bottom: 0.25rem;
+        }
+
+        .record-time {
+            text-align: center;
+        }
+
+        .time-badge {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background: #e0f2fe;
+            color: #0369a1;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .hours-badge {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background: #dcfce7;
+            color: #166534;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .absent-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem;
+            background: #fef2f2;
+            border: 2px solid #fecaca;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+        }
+
+        .absent-card h4 {
+            color: #991b1b;
+            margin-bottom: 0.25rem;
+        }
+
+        @media (max-width: 768px) {
+            .attendance-record {
+                grid-template-columns: 1fr;
+                text-align: center;
+            }
+
+            .quick-actions-attendance {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+
+    <script>
+        let allAttendanceRecords = [];
+        let allEmployees = [];
+
+        // Set today's date as default
+        document.getElementById('date-filter').valueAsDate = new Date();
+        document.getElementById('leave_date').valueAsDate = new Date();
+
+        // Show/hide modals
+        function showCheckInModal() {
+            loadEmployeesForAction('checkin_employee');
+            document.getElementById('checkin-modal').style.display = 'flex';
+        }
+
+        function hideCheckInModal() {
+            document.getElementById('checkin-modal').style.display = 'none';
+            document.getElementById('checkin-form').reset();
+        }
+
+        function showCheckOutModal() {
+            loadEmployeesForAction('checkout_employee');
+            document.getElementById('checkout-modal').style.display = 'flex';
+        }
+
+        function hideCheckOutModal() {
+            document.getElementById('checkout-modal').style.display = 'none';
+            document.getElementById('checkout-form').reset();
+        }
+
+        function showMarkLeaveModal() {
+            loadEmployeesForAction('leave_employee');
+            document.getElementById('leave-modal').style.display = 'flex';
+        }
+
+        function hideMarkLeaveModal() {
+            document.getElementById('leave-modal').style.display = 'none';
+            document.getElementById('leave-form').reset();
+        }
+
+        // Load employees for dropdowns
+        async function loadEmployeesForAction(selectId) {
+            try {
+                const response = await fetch('/api/employees');
+                const data = await response.json();
+
+                if (data.success) {
+                    allEmployees = data.employees;
+                    const select = document.getElementById(selectId);
+                    select.innerHTML = '<option value="">Choose an employee...</option>';
+
+                    data.employees.forEach(employee => {
+                        const option = document.createElement('option');
+                        option.value = employee.employee_id;
+                        option.textContent = `${employee.first_name} ${employee.last_name} - ${employee.position}`;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading employees:', error);
+            }
+        }
+
+        // Check in
+        async function checkIn(event) {
+            event.preventDefault();
+
+            const formData = new FormData(event.target);
+            const data = Object.fromEntries(formData.entries());
+
+            try {
+                const response = await fetch('/api/attendance/checkin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert(`Check-in successful! Time: ${result.check_in_time}`);
+                    hideCheckInModal();
+                    loadAttendanceData();
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            } catch (error) {
+                alert('Error checking in: ' + error.message);
+            }
+        }
+
+        // Check out
+        async function checkOut(event) {
+            event.preventDefault();
+
+            const formData = new FormData(event.target);
+            const data = Object.fromEntries(formData.entries());
+
+            try {
+                const response = await fetch('/api/attendance/checkout', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert(`Check-out successful! Time: ${result.check_out_time}\nHours worked: ${result.hours_worked}`);
+                    hideCheckOutModal();
+                    loadAttendanceData();
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            } catch (error) {
+                alert('Error checking out: ' + error.message);
+            }
+        }
+
+        // Mark leave
+        async function markLeave(event) {
+            event.preventDefault();
+
+            const formData = new FormData(event.target);
+            const data = Object.fromEntries(formData.entries());
+
+            try {
+                const response = await fetch('/api/attendance/leave', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert('Leave marked successfully!');
+                    hideMarkLeaveModal();
+                    loadAttendanceData();
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            } catch (error) {
+                alert('Error marking leave: ' + error.message);
+            }
+        }
+
+        // Load attendance data
+        async function loadAttendanceData() {
+            const date = document.getElementById('date-filter').value;
+            try {
+                const url = date ? `/api/attendance?date=${date}` : '/api/attendance';
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.success) {
+                    allAttendanceRecords = data.present_records;
+                    displayAttendanceSummary(data);
+                    displayAttendanceRecords(data.present_records);
+                    displayAbsentEmployees(data.absent_employees);
+                } else {
+                    document.getElementById('attendance-summary').innerHTML =
+                        '<div class="error">Error loading attendance: ' + data.message + '</div>';
+                }
+            } catch (error) {
+                document.getElementById('attendance-summary').innerHTML =
+                    '<div class="error">Error loading attendance: ' + error.message + '</div>';
+            }
+        }
+
+        // Load attendance by date
+        function loadAttendanceByDate() {
+            loadAttendanceData();
+        }
+
+        // Display attendance summary
+        function displayAttendanceSummary(data) {
+            const total = data.present_records.length + data.absent_employees.length;
+            const present = data.present_records.length;
+            const absent = data.absent_employees.length;
+            const onLeave = data.present_records.filter(r => r.status === 'leave').length;
+
+            const container = document.getElementById('attendance-summary');
+            container.innerHTML = `
+                <div class="summary-item">
+                    <h4>Total Employees</h4>
+                    <p class="summary-value">${total}</p>
+                </div>
+                <div class="summary-item">
+                    <h4>Present</h4>
+                    <p class="summary-value" style="color: #059669;">${present}</p>
+                </div>
+                <div class="summary-item">
+                    <h4>Absent</h4>
+                    <p class="summary-value" style="color: #dc2626;">${absent}</p>
+                </div>
+                <div class="summary-item">
+                    <h4>On Leave</h4>
+                    <p class="summary-value" style="color: #f59e0b;">${onLeave}</p>
+                </div>
+            `;
+        }
+
+        // Display attendance records
+        function displayAttendanceRecords(records) {
+            const container = document.getElementById('attendance-list');
+
+            if (records.length === 0) {
+                container.innerHTML = '<div class="empty-state">No attendance records for this date.</div>';
+                return;
+            }
+
+            const recordsHtml = records.map(record => {
+                const checkIn = record.check_in || 'N/A';
+                const checkOut = record.check_out || 'Not checked out';
+                const hours = record.hours_worked ? parseFloat(record.hours_worked).toFixed(2) : '0';
+                const statusClass = record.status === 'leave' ? 'status-warning' : 'status-success';
+                const statusText = record.status === 'leave' ? `${record.leave_type} leave` : record.status;
+
+                return `
+                    <div class="attendance-record">
+                        <div class="record-employee">
+                            <h4>${record.first_name} ${record.last_name}</h4>
+                            <p>${record.position}</p>
+                            <p style="color: #64748b;">${record.department || 'No Department'}</p>
+                        </div>
+                        <div class="record-time">
+                            <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 0.5rem;">Check In</p>
+                            <span class="time-badge">${checkIn}</span>
+                        </div>
+                        <div class="record-time">
+                            <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 0.5rem;">Check Out</p>
+                            <span class="time-badge">${checkOut}</span>
+                        </div>
+                        <div class="record-time">
+                            <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 0.5rem;">Hours</p>
+                            <span class="hours-badge">${hours}h</span>
+                        </div>
+                        <div class="record-status">
+                            <span class="status-badge ${statusClass}">${statusText}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = recordsHtml;
+        }
+
+        // Display absent employees
+        function displayAbsentEmployees(employees) {
+            const section = document.getElementById('absent-section');
+            const container = document.getElementById('absent-list');
+
+            if (employees.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+
+            section.style.display = 'block';
+
+            const absentHtml = employees.map(employee => `
+                <div class="absent-card">
+                    <div>
+                        <h4>${employee.first_name} ${employee.last_name}</h4>
+                        <p style="color: #64748b; font-size: 0.9rem;">${employee.position} - ${employee.department || 'No Department'}</p>
+                    </div>
+                    <span class="status-badge status-danger">Not Checked In</span>
+                </div>
+            `).join('');
+
+            container.innerHTML = absentHtml;
+        }
+
+        // Filter attendance
+        function filterAttendance() {
+            const searchTerm = document.getElementById('search-input').value.toLowerCase();
+            const filteredRecords = allAttendanceRecords.filter(record =>
+                record.first_name.toLowerCase().includes(searchTerm) ||
+                record.last_name.toLowerCase().includes(searchTerm) ||
+                record.position.toLowerCase().includes(searchTerm)
+            );
+            displayAttendanceRecords(filteredRecords);
+        }
+
+        // Load data when page loads
+        document.addEventListener('DOMContentLoaded', loadAttendanceData);
+    </script>
+</body>
+</html>

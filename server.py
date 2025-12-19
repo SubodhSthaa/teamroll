@@ -12,6 +12,7 @@ import os
 from modules.hr_service import HRService
 from modules.payroll_service import PayrollService
 from modules.accounting_service import AccountingService
+from modules.attendance_service import AttendanceService
 
 
 class TeamRollHandler(BaseHTTPRequestHandler):
@@ -19,6 +20,7 @@ class TeamRollHandler(BaseHTTPRequestHandler):
         self.hr_service = HRService()
         self.payroll_service = PayrollService()
         self.accounting_service = AccountingService()
+        self.attendance_service = AttendanceService()
         super().__init__(*args, **kwargs)
 
     def do_GET(self):
@@ -65,6 +67,8 @@ class TeamRollHandler(BaseHTTPRequestHandler):
             template_path = 'templates/employees.html'
         elif path == '/payroll':
             template_path = 'templates/payroll.html'
+        elif path == '/attendance':
+            template_path = 'templates/attendance.html'
         else:
             self.send_error(404)
             return
@@ -81,6 +85,9 @@ class TeamRollHandler(BaseHTTPRequestHandler):
 
     def handle_api_get(self, path):
         try:
+            parsed_url = urlparse(self.path)
+            query_params = parse_qs(parsed_url.query)
+
             if path == '/api/employees':
                 employees = self.hr_service.get_all_employees()
                 self.send_json_response(employees)
@@ -91,6 +98,20 @@ class TeamRollHandler(BaseHTTPRequestHandler):
             elif path == '/api/payroll':
                 payroll_data = self.payroll_service.get_payroll_summary()
                 self.send_json_response(payroll_data)
+            elif path == '/api/attendance':
+                date = query_params.get('date', [None])[0]
+                attendance_data = self.attendance_service.get_all_attendance(date)
+                self.send_json_response(attendance_data)
+            elif path.startswith('/api/attendance/employee/'):
+                emp_id = path.split('/')[-1]
+                start_date = query_params.get('start_date', [None])[0]
+                end_date = query_params.get('end_date', [None])[0]
+                attendance_data = self.attendance_service.get_attendance_by_employee(emp_id, start_date, end_date)
+                self.send_json_response(attendance_data)
+            elif path.startswith('/api/attendance/status/'):
+                emp_id = path.split('/')[-1]
+                status = self.attendance_service.get_today_status(emp_id)
+                self.send_json_response(status)
             else:
                 self.send_error(404)
         except Exception as e:
@@ -107,6 +128,15 @@ class TeamRollHandler(BaseHTTPRequestHandler):
                 self.send_json_response(result)
             elif path == '/api/payroll/process':
                 result = self.payroll_service.process_payroll(data)
+                self.send_json_response(result)
+            elif path == '/api/attendance/checkin':
+                result = self.attendance_service.check_in(data['employee_id'])
+                self.send_json_response(result)
+            elif path == '/api/attendance/checkout':
+                result = self.attendance_service.check_out(data['employee_id'])
+                self.send_json_response(result)
+            elif path == '/api/attendance/leave':
+                result = self.attendance_service.mark_leave(data)
                 self.send_json_response(result)
             else:
                 self.send_error(404)
