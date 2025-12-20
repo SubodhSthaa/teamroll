@@ -18,7 +18,7 @@
 3. System Objectives
 4. Scope and Limitations
 5. Development Methodology
-6. System Architecture & Design
+6. System Analysis and Design
 7. Implementation Details
 8. Module Specifications
 9. Testing & Quality Assurance
@@ -149,20 +149,15 @@ TeamRoll development follows a prototyping model that emphasizes rapid developme
 
 The prototyping model requires the following stages:
 
-**Prototype Development**
-In this phase, initial prototypes of core modules are developed quickly with focus on functionality over refinement. The team develops working versions of the payroll calculation engine, employee management interface, and attendance tracking system. These prototypes incorporate basic features but emphasize demonstrating primary workflows and data flows.
+- **Requirement identification:** In this phase, the core functional and non-functional requirements of TeamRoll were identified, focusing on payroll automation, employee management, and attendance tracking.
 
-**User Evaluation**
-Developed prototypes are presented to stakeholders and potential users for evaluation and feedback. Users interact with the system, test workflows, and provide detailed feedback on usability, functionality, and design. This phase identifies missing features, workflow issues, and design improvements required.
+- **Study of existing systems:** Existing HR and payroll systems (both local and international) were studied to understand common features, limitations, and best practices that could be adapted for small and medium-sized businesses.
 
-**Refinement & Enhancement**
-Based on user feedback, the prototype is refined and enhanced. Improvements are made to user interfaces, workflows are optimized, additional features are added, and identified issues are resolved. The refined prototype is then re-evaluated by users.
+- **Requirement collection from users:** Detailed requirements were collected from potential end-users such as administrators, HR staff, and managers to ensure that the system aligns with real organizational workflows and pain points.
 
-**Implementation**
-After multiple refinement cycles and stakeholder approval, the validated prototype evolves into the production system. The development team optimizes code, implements comprehensive testing, adds error handling and logging, and prepares the system for deployment.
+- **Prototype development:** Based on the collected requirements, an initial working prototype of TeamRoll was developed, including basic modules for employee management, payroll calculation, and attendance handling.
 
-**Deployment & Maintenance**
-The finalized system is deployed to the production environment. Ongoing maintenance ensures stability, and new features identified during the prototyping phase but deferred are scheduled for implementation in subsequent releases.
+- **Feedback and refinement:** The prototype was demonstrated to users, and their feedback was used to refine interfaces, adjust workflows, add missing features, and improve overall usability in successive iterations.
 
 ### 5.2 Prototyping Phases
 
@@ -214,11 +209,137 @@ The development team employed multiple quality assurance strategies:
 
 ---
 
-## 6. SYSTEM ARCHITECTURE & DESIGN
+## 6. SYSTEM ANALYSIS AND DESIGN
 
-### 6.1 Architectural Overview
+### 6.1 System Analysis
 
-TeamRoll employs a three-tier architecture separating presentation, business logic, and data persistence:
+The system analysis phase for the TeamRoll project involved comprehensive examination of HR and payroll management requirements for small and medium-sized businesses. This phase identified the core functional and non-functional requirements that the system must address to meet organizational needs effectively.
+
+#### 6.1.1 Requirement Analysis
+
+The initial phase involved identifying and documenting both functional and non-functional requirements critical to system success. This comprehensive analysis ensured that the system would address real organizational challenges while maintaining technical feasibility.
+
+**Functional Requirements:**
+
+TeamRoll is designed as a web-based platform facilitating interactions between employees, managers, and administrators. The system features a user-friendly interface enabling:
+
+- **Employees** to view payroll information, request leave, monitor attendance records, and access personal compensation history
+- **Managers** to review and approve payroll cycles, authorize leave requests, monitor team attendance, and access departmental reports
+- **Administrators** to manage complete employee records, configure payroll rules, process monthly payroll, generate compliance reports, and maintain system integrity
+
+**Key Functional Capabilities:**
+- Employee registration, profile management, status tracking, and employment history maintenance
+- Salary structure configuration with multiple allowance and deduction types
+- Automated payroll calculation with income tax computation and statutory deductions
+- Monthly payslip generation with itemized earnings, deductions, and net compensation
+- Attendance tracking with daily check-in/check-out and leave management
+- Payroll approval workflow with multi-level authorization
+- Financial reporting and compliance documentation generation
+- Audit trails for all payroll transactions and system changes
+
+**Non-Functional Requirements:**
+
+- **Performance:** The system should respond to user actions within 2-3 seconds for standard operations, with monthly payroll processing completing within 5 minutes for 500 employees
+- **Availability:** The system should maintain 99% uptime with graceful handling of database connections and minimal downtime for maintenance
+- **Security:** Employee data and payroll information must be protected through access control mechanisms and data encryption for sensitive information
+- **Scalability:** The system must efficiently handle organizations from 10 to 500 employees without significant performance degradation
+- **Usability:** Interfaces should be intuitive and accessible, requiring minimal training for end-users across different technical skill levels
+- **Maintainability:** Code should follow clear architectural patterns, enabling straightforward modification, debugging, and enhancement
+- **Reliability:** Payroll calculations must maintain accuracy to the rupee, with transaction integrity guaranteed through proper database management
+
+#### 6.1.2 Feasibility Study
+
+After requirements analysis, a comprehensive feasibility study was conducted to assess system viability across multiple dimensions, ensuring the project could be successfully delivered within constraints.
+
+**Economic Feasibility:**
+
+TeamRoll was designed to be economically feasible for SMBs with limited IT budgets. The system uses open-source technologies (Python, SQLite) requiring no licensing fees. Infrastructure requirements are minimal—the system operates efficiently on basic servers requiring modest computational resources and storage. Implementation costs are limited to development time, with no ongoing licensing or mandatory support contracts. This approach makes TeamRoll significantly more affordable than enterprise HR solutions (which cost Rs. 5-10 lakhs annually) while providing comparable functionality for SMB-scale operations. The economic model enables organizations to invest in modernization without major capital expenditure.
+
+**Technical Feasibility:**
+
+The selected technology stack (Python, HTML/CSS, JavaScript, SQLite) is widely supported with extensive documentation, active community forums, and abundant resources. All required tools are freely available with no proprietary dependencies or licensing restrictions. The proposed three-tier architecture is a proven design pattern successfully implemented in thousands of web applications of similar scale. Development teams with standard web development skills can implement, maintain, and extend the system without specialized enterprise training. The lightweight approach ensures rapid deployment without complex infrastructure setup.
+
+**Operational Feasibility:**
+
+The system is designed for operational simplicity, requiring minimal IT infrastructure knowledge for deployment and daily administration. The user interface follows standard web application patterns, making it accessible to non-technical users with basic computer skills. Standard database administration tools can manage the SQLite database without specialized database expertise. Organizations can operate the system with existing IT staff or minimal external support, reducing dependency on external vendors.
+
+**Schedule Feasibility:**
+
+The prototyping methodology allows incremental delivery of working features, with initial functionality available quickly for user evaluation and feedback. The modular architecture enables parallel development of different components by multiple developers. Based on the actual development timeline from August to December 2025, the system proved deliverable within realistic project schedules while maintaining code quality, documentation standards, and proper testing procedures.
+
+#### 6.1.3 Data Modeling
+
+Data modeling establishes how information is structured and organized within TeamRoll, defining entities, attributes, relationships, and rules critical to system operation and data integrity.
+
+**Primary Entities:**
+
+The TeamRoll data model encompasses the following key entities:
+
+- **Employee:** Stores complete personnel information including unique ID, full name, designation, department, employment date, contact details, salary structure reference, and employment status (active/inactive)
+
+- **Payroll:** Maintains historical payroll records with gross salary calculation, itemized deductions, net pay computation, processing date, and payroll cycle reference for audit and analysis
+
+- **Attendance:** Records daily attendance with precise check-in time, check-out time, calculated total hours worked, and date for payroll integration and reporting
+
+- **Leave:** Tracks leave requests with leave type, start/end dates, reason for leave, approval status (pending/approved/rejected), and impact on payroll calculations
+
+- **Deduction:** Defines applicable deductions with type (tax, insurance, etc.), percentage/fixed amount, calculation rules, and applicability criteria based on employee classification
+
+- **Payslip:** Stores generated payslips with complete breakdown of earnings, deductions, statutory contributions, net compensation, and generation date for employee access and compliance
+
+- **User:** Maintains system users with authentication credentials, role assignments (admin/manager/employee), and access control permissions
+
+**Key Relationships:**
+
+- **One-to-Many (Employee → Payroll):** Each employee has multiple payroll records across different months/years
+- **One-to-Many (Employee → Attendance):** Each employee has daily attendance records spanning employment duration
+- **One-to-Many (Employee → Leave):** Multiple leave requests are tracked per employee
+- **One-to-Many (Payroll → Deduction):** Each payroll record includes multiple deduction calculations
+- **One-to-One (Employee ↔ User):** Each employee typically has one associated user account
+
+This relational structure ensures data integrity while supporting complex payroll and HR operations with proper normalization and referential integrity constraints.
+
+#### 6.1.4 Process Modeling
+
+Process modeling uses Data Flow Diagrams (DFDs) to visualize how data flows through the system, showing interactions between users, processes, and data storage at different levels of detail.
+
+**Level 0 (Context) DFD:**
+
+The highest-level view shows TeamRoll as a single system with external entities and major data flows:
+
+- **Employees** interact by registering in the system, submitting leave requests, viewing payslips, and updating personal information
+- **Managers** provide approval decisions on payroll and leave, review team attendance metrics, and access departmental reports
+- **Administrators** initiate system operations including employee management, payroll processing, report generation, and system configuration
+- **System outputs** include payslips for employees, approval notifications for managers, and comprehensive reports for administrators
+
+**Level 1 DFD:**
+
+Decomposition reveals major processes and their interactions:
+
+- **1.0 Manage Authentication:** Validates user credentials against stored records, assigns role-based permissions, and maintains session information
+- **2.0 Manage Employees:** Handles employee record creation, modification, deletion, and status tracking with complete personnel data maintenance
+- **3.0 Manage Payroll:** Calculates gross salaries from employment records, applies configured deductions, generates payslips, and updates financial ledgers
+- **4.0 Manage Attendance:** Records daily check-in/check-out times, processes leave requests, calculates working hours, and integrates attendance with payroll
+- **5.0 Generate Reports:** Creates payroll summaries, compliance reports, attendance analytics, and financial statements for various stakeholders
+
+**Level 2 DFDs:**
+
+Detailed process flows demonstrate specific workflows:
+
+- **Employee Registration Flow:** Employee submits information → System validates data → Record created in database → Confirmation notification sent
+- **Payroll Processing Flow:** Retrieve employee and attendance data → Calculate gross salary → Apply tax and deductions → Generate payslip → Update ledger → Create approval request
+- **Leave Request Flow:** Employee submits leave request → Manager receives notification → Approval/rejection decision → Attendance and payroll impact calculated → Employee notified
+- **Attendance Recording:** Employee check-in recorded → Daily hours accumulated → Monthly totals calculated → Payroll adjusted for absences → Reports generated
+
+---
+
+### 6.2 System Design
+
+System design translates requirements into a detailed blueprint for implementation, specifying overall architecture, database structure, user interface design, and system behavior specifications that guide the development process.
+
+#### 6.2.1 System Architecture
+
+TeamRoll employs a proven three-tier architecture separating concerns into distinct layers, each with specific responsibilities and well-defined interfaces:
 
 ```
 ┌─────────────────────────────────────────────────┐
@@ -226,131 +347,112 @@ TeamRoll employs a three-tier architecture separating presentation, business log
 │  - User Interface Templates                      │
 │  - Responsive Design                             │
 │  - Client-side Validation                        │
+│  - Form Handling & Navigation                    │
 └────────────────┬────────────────────────────────┘
-                 │ HTTP/JSON
+                 │ HTTP/JSON Requests & Responses
 ┌────────────────▼────────────────────────────────┐
 │  APPLICATION LAYER (Python)                     │
-│  - Request Routing                               │
+│  - HTTP Request Routing                          │
 │  - Business Logic Services                       │
-│  - Data Validation                               │
-│  - API Endpoints                                 │
+│  - Data Validation & Processing                  │
+│  - REST API Endpoints                            │
+│  - Access Control & Security                     │
 └────────────────┬────────────────────────────────┘
-                 │ SQL
+                 │ SQL Queries & Transactions
 ┌────────────────▼────────────────────────────────┐
 │  DATA LAYER (SQLite)                            │
-│  - Employee Records                              │
-│  - Payroll History                               │
-│  - Attendance Data                               │
-│  - Transaction Logs                              │
+│  - Employee Records & History                    │
+│  - Payroll Data & Calculations                   │
+│  - Attendance & Leave Records                    │
+│  - Financial Transactions                        │
+│  - User Credentials & Permissions                │
 └─────────────────────────────────────────────────┘
 ```
 
-### 6.2 Presentation Layer
+**Layer Responsibilities:**
 
-The presentation tier delivers user interfaces through standard web technologies:
+- **Presentation Layer:** Renders user interfaces, handles user input, performs client-side validation, manages session information, and communicates with the application layer through HTTP requests
+- **Application Layer:** Routes requests to appropriate services, executes business logic, performs data validation, enforces access control, and returns results in JSON format
+- **Data Layer:** Persists data durably, maintains data integrity through constraints, provides efficient data retrieval, manages transactions, and supports concurrent access
 
-**Technologies:** HTML 5, CSS 3, JavaScript (ES6+)
+#### 6.2.2 Database Schema Design
 
-**Components:**
-- `templates/index.html` - Dashboard and main navigation
-- `templates/dashboard.html` - Administrative overview
-- `templates/employees.html` - Employee management interface
-- `templates/payroll.html` - Payroll processing interface
-- `templates/attendance.html` - Attendance tracking interface
-- `static/styles.css` - Unified styling and responsive design
+The database schema implements the logical data model through physical tables with appropriate data types, constraints, and relationships:
 
-**Features:**
-- Responsive design adapting to various screen sizes
-- Form validation before submission
-- Real-time status updates through AJAX
-- Intuitive navigation based on user roles
-- Clear visual hierarchy and information organization
+**Core Tables:**
 
-### 6.3 Application Layer
+**employees** - Stores complete personnel information
+- Columns: employee_id (PK), full_name, email, phone, designation, department, date_of_joining, status, basic_salary, created_at, updated_at
+- Constraints: Primary key on employee_id, unique email, not-null constraints on required fields
 
-The application layer implements core business logic and request handling:
+**payroll_records** - Maintains historical payroll data
+- Columns: payroll_id (PK), employee_id (FK), gross_salary, income_tax, social_security, insurance, net_salary, payment_date, month, year, status
+- Constraints: Foreign key to employees, unique (employee_id, month, year), not-null on calculations
 
-**Core Components:**
+**attendance** - Records daily attendance
+- Columns: attendance_id (PK), employee_id (FK), check_in_time, check_out_time, working_hours, attendance_date, status
+- Constraints: Foreign key to employees, not-null on essential fields, date range validation
 
-**server.py** - Main HTTP Server
-- Implements custom HTTPServer using Python's `http.server` module
-- Routes incoming requests to appropriate handlers
-- Manages static file serving and template rendering
-- Implements REST API endpoints
-- Handles CORS for cross-origin requests
+**leave_requests** - Tracks leave applications
+- Columns: leave_id (PK), employee_id (FK), leave_type, start_date, end_date, reason, status, approved_by, approval_date
+- Constraints: Foreign key to employees, date validation (start ≤ end), status enumeration
 
-**HRService** - Employee & Personnel Management
-- Add, update, delete employee records
-- Retrieve employee information with filtering
-- Manage employee classifications and roles
-- Maintain employment history and transitions
+**deductions** - Defines deduction types and rules
+- Columns: deduction_id (PK), deduction_type, percentage, fixed_amount, applicable_to, rules
+- Constraints: Primary key, check (percentage between 0-100 OR fixed_amount > 0)
 
-**PayrollService** - Salary Calculation & Processing
-- Calculate gross salary based on structure
-- Apply deductions (tax, social security, insurance)
-- Process bonuses and special payments
-- Generate payslip records
-- Produce payroll summaries and reports
+**payslips** - Stores generated payslips
+- Columns: payslip_id (PK), payroll_id (FK), employee_id (FK), gross_salary, total_deductions, net_salary, generated_date
+- Constraints: Foreign keys to payroll and employees, not-null calculations
 
-**AttendanceService** - Attendance & Leave Management
-- Record check-in and check-out times
-- Calculate daily and monthly attendance hours
-- Process leave requests with approval workflows
-- Generate attendance reports and summaries
-- Integrate attendance with payroll calculations
+**users** - Manages system access
+- Columns: user_id (PK), employee_id (FK), username, password_hash, role, last_login, status
+- Constraints: Foreign key to employees, unique username, not-null on critical fields
 
-**AccountingService** - Financial Reporting
-- Generate expense reports
-- Produce payroll reconciliation statements
-- Create tax and compliance reports
-- Maintain financial transaction records
+#### 6.2.3 Interface Design
 
-### 6.4 Data Layer
+The user interface design prioritizes clarity, usability, and accessibility across different user roles and technical skill levels.
 
-The data persistence tier uses SQLite for reliable, serverless data management:
+**Design Principles:**
+- **Role-Based Layouts:** Different interface views for admin, manager, and employee roles
+- **Responsive Design:** Adapts to various screen sizes from mobile to desktop displays
+- **Intuitive Navigation:** Clear menu structure, consistent layout patterns, logical information hierarchy
+- **Data Visualization:** Tables for detailed data, summary cards for key metrics, charts for trends
+- **Form Design:** Clear labels, validation feedback, logical field grouping, confirmation dialogs for critical actions
+- **Accessibility:** Standard web accessibility practices, keyboard navigation support, semantic HTML
 
-**Database Schema:**
+**Key Interface Templates:**
 
-**employees** table
-- Stores complete employee information including ID, name, designation, department, employment date, contact details, and status
+- **Dashboard:** Summary view with key metrics (employee count, payroll status, attendance overview)
+- **Employee Management:** CRUD interface for employee records with history tracking
+- **Payroll Processing:** Workflow interface for payroll calculation, review, and approval
+- **Attendance Tracking:** Daily attendance recording with leave request management
+- **Reporting:** Report selection, generation, and export functionality
 
-**payroll_records** table
-- Maintains historical payroll data with gross salary, deductions, net pay, processing date, and payroll cycle information
+#### 6.2.4 API Endpoint Design
 
-**attendance** table
-- Records daily attendance with check-in time, check-out time, total hours, date, and employee reference
-
-**leave_requests** table
-- Tracks leave applications with employee reference, leave type, dates, reason, status, and approval information
-
-**deductions** table
-- Defines allowable deductions with type, percentage, rules, and applicability criteria
-
-**payslips** table
-- Stores generated payslips with complete breakdown of earnings, deductions, and net compensation
-
-### 6.5 API Design
-
-TeamRoll implements RESTful API endpoints following standard conventions:
+RESTful API design following standard conventions for consistency and ease of integration:
 
 **Employee Management Endpoints:**
-- `GET /api/employees` - Retrieve all employees
-- `GET /api/employees/{id}` - Retrieve specific employee
-- `POST /api/employees` - Create new employee
-- `PUT /api/employees/{id}` - Update employee
-- `DELETE /api/employees/{id}` - Delete employee
+- `GET /api/employees` - List all employees with optional filters
+- `POST /api/employees` - Create new employee record
+- `GET /api/employees/{id}` - Retrieve specific employee details
+- `PUT /api/employees/{id}` - Update employee information
+- `DELETE /api/employees/{id}` - Deactivate employee
 
 **Payroll Endpoints:**
-- `GET /api/payroll` - Retrieve payroll summary
-- `POST /api/payroll/process` - Process payroll cycle
-- `GET /api/payroll/{id}` - Retrieve employee payroll
+- `GET /api/payroll` - Retrieve payroll summary for current period
+- `POST /api/payroll/process` - Execute payroll cycle for selected employees
+- `GET /api/payroll/{id}` - Retrieve payroll details for employee
+- `GET /api/payroll/{id}/payslip` - Generate and retrieve payslip
 
 **Attendance Endpoints:**
-- `GET /api/attendance` - Retrieve attendance records
-- `POST /api/attendance/checkin` - Record check-in
-- `POST /api/attendance/checkout` - Record check-out
-- `POST /api/attendance/leave` - Request leave
+- `POST /api/attendance/checkin` - Record employee check-in
+- `POST /api/attendance/checkout` - Record employee check-out
+- `GET /api/attendance/{date}` - Retrieve attendance for specific date
 - `GET /api/attendance/employee/{id}` - Employee attendance history
+- `POST /api/attendance/leave` - Submit leave request
+- `PUT /api/attendance/leave/{id}` - Approve or reject leave
 
 ---
 
@@ -834,6 +936,7 @@ The prototyping development approach proved effective in validating design decis
 - **Clean, maintainable codebase following modular design principles**
 - **Comprehensive documentation for deployment and usage**
 - **User-validated prototype achieving high alignment with requirements**
+- **Comprehensive system analysis and design documentation**
 
 ### 12.2 Path Forward
 
@@ -859,7 +962,7 @@ The project serves as proof that pragmatic, user-focused engineering—emphasizi
 
 ---
 
-**Document Version:** 1.0  
+**Document Version:** 1.1  
 **Last Updated:** December 2025  
 **Prepared by:** TeamRoll Development Team  
 **Organization:** TeamRoll Project  
