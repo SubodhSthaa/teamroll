@@ -68,7 +68,7 @@ teamroll/
 ---
 
 ## ✅ Roadmap
-- [ ] Add authentication (login for admin, manager, employee)  
+- [ ] Add authentication (login for admin, employee)  
 - [ ] Build reporting dashboards (charts & exports)  
 - [ ] Integrate tax filing automation  
 - [ ] Multi-language & regional compliance support  
