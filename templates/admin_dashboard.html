@@ -5,6 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - TeamRoll</title>
     <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        .dashboard-overview {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        .recent-activity {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        @media (max-width: 968px) {
+            .dashboard-overview {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
 <body>
     <header class="header">
@@ -21,7 +38,7 @@
                 <a href="/admin/registrations" class="nav-link" id="registrations-link">
                     Registrations <span id="pending-badge" style="display:none; background: #dc2626; color: white; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.75rem; margin-left: 0.25rem;"></span>
                 </a>
-                <a href="#" onclick="logout()" class="nav-link">Logout</a>
+                <a href="#" onclick="logout(); return false;" class="nav-link">Logout</a>
             </nav>
         </div>
     </header>
@@ -64,31 +81,76 @@
                 </div>
             </div>
 
-            <div class="dashboard-content">
+            <div class="dashboard-overview">
                 <div class="dashboard-section">
                     <h3>Quick Actions</h3>
                     <div class="quick-actions">
                         <a href="/employees" class="action-card">
                             <div class="action-icon">👤</div>
-                            <h4>Manage Employees</h4>
-                            <p>Add, edit, or remove employees</p>
+                            <div>
+                                <h4>Manage Employees</h4>
+                                <p>Add, edit, or remove employee records</p>
+                            </div>
                         </a>
                         <a href="/payroll" class="action-card">
                             <div class="action-icon">💵</div>
-                            <h4>Process Payroll</h4>
-                            <p>Calculate and process payments</p>
+                            <div>
+                                <h4>Process Payroll</h4>
+                                <p>Calculate and manage employee payments</p>
+                            </div>
                         </a>
                         <a href="/attendance" class="action-card">
                             <div class="action-icon">📅</div>
-                            <h4>View Attendance</h4>
-                            <p>Track employee attendance</p>
+                            <div>
+                                <h4>View Attendance</h4>
+                                <p>Monitor employee attendance records</p>
+                            </div>
                         </a>
                         <a href="/admin/registrations" class="action-card" id="registrations-card">
                             <div class="action-icon">✋</div>
-                            <h4>Pending Registrations</h4>
-                            <p id="registrations-count">Review employee requests</p>
+                            <div>
+                                <h4>Pending Registrations</h4>
+                                <p id="registrations-count">Review employee registration requests</p>
+                            </div>
                         </a>
                     </div>
+                </div>
+
+                <div class="dashboard-section">
+                    <h3>System Overview</h3>
+                    <div class="activity-list" id="system-info">
+                        <div class="activity-item">
+                            <div class="activity-icon">👥</div>
+                            <div>
+                                <strong id="active-employees-count">0</strong> Active Employees
+                            </div>
+                        </div>
+                        <div class="activity-item">
+                            <div class="activity-icon">✅</div>
+                            <div>
+                                <strong id="present-today">0</strong> Present Today
+                            </div>
+                        </div>
+                        <div class="activity-item">
+                            <div class="activity-icon">📋</div>
+                            <div>
+                                <strong id="pending-approvals">0</strong> Pending Approvals
+                            </div>
+                        </div>
+                        <div class="activity-item">
+                            <div class="activity-icon">💼</div>
+                            <div>
+                                <strong>Admin</strong> Role
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dashboard-section">
+                <h3>Recent Activity</h3>
+                <div class="activity-list recent-activity" id="recent-activity">
+                    <div class="loading">Loading recent activity...</div>
                 </div>
             </div>
         </div>
@@ -119,12 +181,23 @@
 
         async function loadDashboardData() {
             try {
+                const employeesResponse = await fetch('/api/employees');
+                const employeesData = await employeesResponse.json();
+                const employees = employeesData.employees || [];
+                const activeEmployees = employees.filter(e => e.status === 'active');
+
+                document.getElementById('total-employees').textContent = activeEmployees.length;
+                document.getElementById('active-employees-count').textContent = activeEmployees.length;
+            } catch (error) {
+                console.error('Error loading employees:', error);
+            }
+
+            try {
                 const response = await fetch('/api/payroll');
                 const data = await response.json();
 
                 if (data.success || data.records) {
                     const records = data.records || [];
-                    document.getElementById('total-employees').textContent = new Set(records.map(r => r.employee_id)).size;
                     const totalGross = records.reduce((sum, r) => sum + (parseFloat(r.gross_pay) || 0), 0);
                     const totalTax = records.reduce((sum, r) => sum + (parseFloat(r.tax_deductions) || 0), 0);
                     document.getElementById('monthly-payroll').textContent = `$${totalGross.toFixed(2)}`;
@@ -132,7 +205,21 @@
                     document.getElementById('processed-payrolls').textContent = records.length;
                 }
             } catch (error) {
-                console.error('Error loading dashboard data:', error);
+                console.error('Error loading payroll data:', error);
+            }
+
+            try {
+                const today = new Date().toISOString().split('T')[0];
+                const response = await fetch(`/api/attendance?date=${today}`);
+                const data = await response.json();
+
+                if (data.success || data.records) {
+                    const records = data.records || [];
+                    const presentToday = records.filter(r => r.status === 'present').length;
+                    document.getElementById('present-today').textContent = presentToday;
+                }
+            } catch (error) {
+                console.error('Error loading attendance:', error);
             }
 
             try {
@@ -141,6 +228,8 @@
 
                 if (data.success && data.registrations) {
                     const count = data.registrations.length;
+                    document.getElementById('pending-approvals').textContent = count;
+
                     if (count > 0) {
                         document.getElementById('pending-badge').textContent = count;
                         document.getElementById('pending-badge').style.display = 'inline';
@@ -148,22 +237,70 @@
                         document.getElementById('registrations-card').style.borderColor = '#dc2626';
                         document.getElementById('registrations-card').style.background = '#fef2f2';
                     }
+
+                    loadRecentActivity(data.registrations);
                 }
             } catch (error) {
                 console.error('Error loading pending registrations:', error);
             }
         }
 
+        async function loadRecentActivity(registrations) {
+            const activityContainer = document.getElementById('recent-activity');
+
+            if (!registrations || registrations.length === 0) {
+                activityContainer.innerHTML = '<div class="empty-state">No recent activity</div>';
+                return;
+            }
+
+            const activityHTML = registrations.slice(0, 5).map(reg => {
+                const date = new Date(reg.created_at);
+                const timeAgo = getTimeAgo(date);
+
+                return `
+                    <div class="activity-item">
+                        <div class="activity-icon">📝</div>
+                        <div style="flex: 1;">
+                            <div><strong>${reg.first_name} ${reg.last_name}</strong> requested registration</div>
+                            <div class="activity-time">${timeAgo}</div>
+                        </div>
+                        <a href="/admin/registrations" class="btn btn-small btn-primary">Review</a>
+                    </div>
+                `;
+            }).join('');
+
+            activityContainer.innerHTML = activityHTML;
+        }
+
+        function getTimeAgo(date) {
+            const seconds = Math.floor((new Date() - date) / 1000);
+
+            if (seconds < 60) return 'Just now';
+            if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`;
+            if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
+            return `${Math.floor(seconds / 86400)} days ago`;
+        }
+
         async function logout() {
             try {
-                const response = await fetch('/api/auth/logout', { method: 'POST' });
+                const response = await fetch('/api/auth/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
                 const result = await response.json();
 
                 if (result.success) {
                     window.location.href = '/login';
+                } else {
+                    console.error('Logout failed:', result.message);
+                    window.location.href = '/login';
                 }
             } catch (error) {
                 console.error('Error logging out:', error);
+                window.location.href = '/login';
             }
         }
 

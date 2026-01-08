@@ -29,6 +29,17 @@
             font-size: 1.1rem;
             font-weight: 600;
         }
+        .dashboard-overview {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        @media (max-width: 968px) {
+            .dashboard-overview {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
@@ -42,7 +53,7 @@
                 <a href="/dashboard" class="nav-link active">Dashboard</a>
                 <a href="/payroll" class="nav-link">My Payroll</a>
                 <a href="/attendance" class="nav-link">Attendance</a>
-                <a href="#" onclick="logout()" class="nav-link">Logout</a>
+                <a href="#" onclick="logout(); return false;" class="nav-link">Logout</a>
             </nav>
         </div>
     </header>
@@ -85,37 +96,69 @@
                 </div>
             </div>
 
-            <div class="dashboard-content">
-                <div class="dashboard-section">
-                    <h3>My Information</h3>
-                    <div class="employee-info-grid" id="employee-info">
-                        <div class="loading">Loading your information...</div>
-                    </div>
+            <div class="dashboard-section">
+                <h3>My Information</h3>
+                <div class="employee-info-grid" id="employee-info">
+                    <div class="loading">Loading your information...</div>
                 </div>
+            </div>
 
+            <div class="dashboard-overview">
                 <div class="dashboard-section">
                     <h3>Quick Actions</h3>
                     <div class="quick-actions">
                         <a href="#" onclick="checkIn(); return false;" class="action-card">
                             <div class="action-icon">🕐</div>
-                            <h4>Check In</h4>
-                            <p>Mark your attendance</p>
+                            <div>
+                                <h4>Check In</h4>
+                                <p>Mark your attendance for today</p>
+                            </div>
                         </a>
                         <a href="#" onclick="checkOut(); return false;" class="action-card">
                             <div class="action-icon">🕔</div>
-                            <h4>Check Out</h4>
-                            <p>End your workday</p>
+                            <div>
+                                <h4>Check Out</h4>
+                                <p>Complete your workday</p>
+                            </div>
                         </a>
                         <a href="/payroll" class="action-card">
                             <div class="action-icon">💰</div>
-                            <h4>View Payslips</h4>
-                            <p>Access your payment history</p>
+                            <div>
+                                <h4>View Payslips</h4>
+                                <p>Access your payment history</p>
+                            </div>
                         </a>
                         <a href="/attendance" class="action-card">
                             <div class="action-icon">📊</div>
-                            <h4>Attendance History</h4>
-                            <p>View your attendance records</p>
+                            <div>
+                                <h4>Attendance History</h4>
+                                <p>View your attendance records</p>
+                            </div>
                         </a>
+                    </div>
+                </div>
+
+                <div class="dashboard-section">
+                    <h3>This Month</h3>
+                    <div class="activity-list">
+                        <div class="activity-item">
+                            <div class="activity-icon">📅</div>
+                            <div>
+                                <strong id="days-present">0</strong> Days Present
+                            </div>
+                        </div>
+                        <div class="activity-item">
+                            <div class="activity-icon">⏰</div>
+                            <div>
+                                <strong id="total-hours">0</strong> Hours Worked
+                            </div>
+                        </div>
+                        <div class="activity-item">
+                            <div class="activity-icon">💵</div>
+                            <div>
+                                Last Pay: <strong id="last-pay">$0</strong>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -189,9 +232,51 @@
                             <div class="value">${employeeData.status}</div>
                         </div>
                     `;
+
+                    await loadMonthlyStats();
                 }
             } catch (error) {
                 console.error('Error loading employee info:', error);
+            }
+        }
+
+        async function loadMonthlyStats() {
+            try {
+                const now = new Date();
+                const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+                const startDate = firstDay.toISOString().split('T')[0];
+                const endDate = now.toISOString().split('T')[0];
+
+                const response = await fetch(`/api/attendance/employee/${currentUser.employee_id}?start_date=${startDate}&end_date=${endDate}`);
+                const data = await response.json();
+
+                if (data.success && data.records) {
+                    const records = data.records;
+                    const daysPresent = records.filter(r => r.status === 'present').length;
+                    const totalHours = records.reduce((sum, r) => sum + (parseFloat(r.hours_worked) || 0), 0);
+
+                    document.getElementById('days-present').textContent = daysPresent;
+                    document.getElementById('total-hours').textContent = totalHours.toFixed(1);
+                }
+            } catch (error) {
+                console.error('Error loading monthly stats:', error);
+            }
+
+            try {
+                const payrollResponse = await fetch('/api/payroll');
+                const payrollData = await payrollResponse.json();
+
+                if (payrollData.success || payrollData.records) {
+                    const myPayrolls = (payrollData.records || []).filter(r => r.employee_id === currentUser.employee_id);
+                    if (myPayrolls.length > 0) {
+                        const latestPayroll = myPayrolls.sort((a, b) =>
+                            new Date(b.pay_period_end) - new Date(a.pay_period_end)
+                        )[0];
+                        document.getElementById('last-pay').textContent = `$${parseFloat(latestPayroll.net_pay).toFixed(2)}`;
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading payroll data:', error);
             }
         }
 
@@ -262,14 +347,24 @@
 
         async function logout() {
             try {
-                const response = await fetch('/api/auth/logout', { method: 'POST' });
+                const response = await fetch('/api/auth/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
                 const result = await response.json();
 
                 if (result.success) {
                     window.location.href = '/login';
+                } else {
+                    console.error('Logout failed:', result.message);
+                    window.location.href = '/login';
                 }
             } catch (error) {
                 console.error('Error logging out:', error);
+                window.location.href = '/login';
             }
         }
 

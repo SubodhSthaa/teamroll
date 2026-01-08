@@ -198,9 +198,12 @@ class TeamRollHandler(BaseHTTPRequestHandler):
 
     def handle_api_post(self, path):
         try:
-            content_length = int(self.headers['Content-Length'])
-            post_data = self.rfile.read(content_length)
-            data = json.loads(post_data.decode('utf-8'))
+            content_length = self.headers.get('Content-Length')
+            if content_length:
+                post_data = self.rfile.read(int(content_length))
+                data = json.loads(post_data.decode('utf-8'))
+            else:
+                data = {}
 
             if path == '/api/employees':
                 result = self.hr_service.add_employee(data)

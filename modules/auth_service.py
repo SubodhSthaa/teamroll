@@ -217,10 +217,13 @@ class AuthService:
         """Delete session (logout)"""
         try:
             if not session_id:
-                return {'success': False, 'message': 'No session provided'}
+                return {
+                    'success': True,
+                    'message': 'No active session'
+                }
 
             query = 'DELETE FROM sessions WHERE session_id = ?'
-            execute_query(query, (session_id,))
+            rows_deleted = execute_query(query, (session_id,))
 
             return {
                 'success': True,
@@ -228,9 +231,10 @@ class AuthService:
             }
 
         except Exception as e:
+            print(f"Logout error: {str(e)}")
             return {
-                'success': False,
-                'message': f'Error during logout: {str(e)}'
+                'success': True,
+                'message': 'Logged out'
             }
 
     def get_pending_registrations(self):

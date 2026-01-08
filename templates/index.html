@@ -119,6 +119,23 @@
         </div>
     </footer>
 
-    <script src="/static/app.js"></script>
+    <script>
+        async function checkAuthentication() {
+            try {
+                const response = await fetch('/api/auth/me');
+                const data = await response.json();
+
+                if (data.success) {
+                    window.location.href = '/dashboard';
+                } else {
+                    window.location.href = '/login';
+                }
+            } catch (error) {
+                window.location.href = '/login';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', checkAuthentication);
+    </script>
 </body>
 </html>
