@@ -59,19 +59,50 @@ class TeamRollHandler(BaseHTTPRequestHandler):
             self.send_error(404)
 
     def serve_template(self, path):
-        if path == '/' or path == '/index.html':
-            template_path = 'templates/index.html'
-        elif path == '/dashboard':
-            template_path = 'templates/dashboard.html'
-        elif path == '/employees':
-            template_path = 'templates/employees.html'
-        elif path == '/payroll':
-            template_path = 'templates/payroll.html'
-        elif path == '/attendance':
-            template_path = 'templates/attendance.html'
+        public_pages = ['/', '/index.html', '/login', '/register']
+
+        if path in public_pages:
+            if path == '/' or path == '/index.html':
+                template_path = 'templates/index.html'
+            elif path == '/login':
+                template_path = 'templates/login.html'
+            elif path == '/register':
+                template_path = 'templates/register.html'
         else:
-            self.send_error(404)
-            return
+            user = self.get_current_user()
+            if not user:
+                self.send_response(302)
+                self.send_header('Location', '/login')
+                self.end_headers()
+                return
+
+            if path == '/dashboard':
+                if user['role'] == 'admin':
+                    template_path = 'templates/admin_dashboard.html'
+                else:
+                    template_path = 'templates/employee_dashboard.html'
+            elif path == '/employees':
+                if user['role'] == 'admin':
+                    template_path = 'templates/employees.html'
+                else:
+                    self.send_error(403)
+                    return
+            elif path == '/payroll':
+                if user['role'] == 'admin':
+                    template_path = 'templates/payroll.html'
+                else:
+                    template_path = 'templates/employee_payroll.html'
+            elif path == '/attendance':
+                template_path = 'templates/attendance.html'
+            elif path == '/admin/registrations':
+                if user['role'] == 'admin':
+                    template_path = 'templates/admin_registrations.html'
+                else:
+                    self.send_error(403)
+                    return
+            else:
+                self.send_error(404)
+                return
 
         if os.path.exists(template_path):
             self.send_response(200)
@@ -112,6 +143,29 @@ class TeamRollHandler(BaseHTTPRequestHandler):
                 emp_id = path.split('/')[-1]
                 status = self.attendance_service.get_today_status(emp_id)
                 self.send_json_response(status)
+            elif path == '/api/auth/me':
+                user = self.get_current_user()
+                if user:
+                    self.send_json_response({
+                        'success': True,
+                        'user': {
+                            'username': user['username'],
+                            'role': user['role'],
+                            'employee_id': user['employee_id'],
+                            'email': user['email'],
+                            'first_name': user.get('first_name'),
+                            'last_name': user.get('last_name')
+                        }
+                    })
+                else:
+                    self.send_json_response({'success': False, 'message': 'Not authenticated'}, 401)
+            elif path == '/api/admin/pending-registrations':
+                user = self.get_current_user()
+                if not user or user['role'] != 'admin':
+                    self.send_json_response({'success': False, 'message': 'Admin access required'}, 403)
+                    return
+                pending = self.auth_service.get_pending_registrations()
+                self.send_json_response({'success': True, 'registrations': pending})
             else:
                 self.send_error(404)
         except Exception as e:
@@ -137,6 +191,56 @@ class TeamRollHandler(BaseHTTPRequestHandler):
                 self.send_json_response(result)
             elif path == '/api/attendance/leave':
                 result = self.attendance_service.mark_leave(data)
+                self.send_json_response(result)
+            elif path == '/api/auth/register':
+                result = self.auth_service.register_user(data)
+                self.send_json_response(result)
+            elif path == '/api/auth/login':
+                result = self.auth_service.login(data.get('username'), data.get('password'))
+                if result['success']:
+                    self.send_response(200)
+                    self.send_header('Content-type', 'application/json')
+                    self.send_header('Set-Cookie', f"session_id={result['session_id']}; Path=/; HttpOnly; Max-Age=86400")
+                    self.end_headers()
+                    response = json.dumps(result, indent=2)
+                    self.wfile.write(response.encode('utf-8'))
+                else:
+                    self.send_json_response(result, 401)
+                return
+            elif path == '/api/auth/logout':
+                session_id = self.get_session_id()
+                result = self.auth_service.logout(session_id)
+                if result['success']:
+                    self.send_response(200)
+                    self.send_header('Content-type', 'application/json')
+                    self.send_header('Set-Cookie', 'session_id=; Path=/; HttpOnly; Max-Age=0')
+                    self.end_headers()
+                    response = json.dumps(result, indent=2)
+                    self.wfile.write(response.encode('utf-8'))
+                else:
+                    self.send_json_response(result)
+                return
+            elif path == '/api/admin/approve-registration':
+                user = self.get_current_user()
+                if not user or user['role'] != 'admin':
+                    self.send_json_response({'success': False, 'message': 'Admin access required'}, 403)
+                    return
+                result = self.auth_service.approve_registration(
+                    data['registration_id'],
+                    user['user_id'],
+                    data.get('notes', '')
+                )
+                self.send_json_response(result)
+            elif path == '/api/admin/reject-registration':
+                user = self.get_current_user()
+                if not user or user['role'] != 'admin':
+                    self.send_json_response({'success': False, 'message': 'Admin access required'}, 403)
+                    return
+                result = self.auth_service.reject_registration(
+                    data['registration_id'],
+                    user['user_id'],
+                    data.get('notes', '')
+                )
                 self.send_json_response(result)
             else:
                 self.send_error(404)

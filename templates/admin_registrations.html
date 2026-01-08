@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pending Registrations - TeamRoll</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        .registration-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            margin-bottom: 1.5rem;
+            border: 2px solid #e2e8f0;
+        }
+
+        .registration-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .registration-info {
+            flex: 1;
+        }
+
+        .registration-name {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 0.5rem;
+        }
+
+        .registration-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .detail-item {
+            padding: 0.75rem;
+            background: #f8fafc;
+            border-radius: 8px;
+        }
+
+        .detail-label {
+            display: block;
+            color: #64748b;
+            font-size: 0.85rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .detail-value {
+            color: #1e293b;
+            font-weight: 600;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .btn-approve {
+            background: #059669;
+            color: white;
+        }
+
+        .btn-approve:hover {
+            background: #047857;
+        }
+
+        .btn-reject {
+            background: #dc2626;
+            color: white;
+        }
+
+        .btn-reject:hover {
+            background: #b91c1c;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #64748b;
+        }
+
+        .notes-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            font-family: inherit;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="nav-brand">
+                <h1>TeamRoll</h1>
+                <span class="tagline">Registration Approvals</span>
+            </div>
+            <nav class="nav-menu">
+                <a href="/dashboard" class="nav-link">Dashboard</a>
+                <a href="/employees" class="nav-link">Employees</a>
+                <a href="/payroll" class="nav-link">Payroll</a>
+                <a href="/attendance" class="nav-link">Attendance</a>
+                <a href="/admin/registrations" class="nav-link active">Registrations</a>
+                <a href="#" onclick="logout()" class="nav-link">Logout</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="container">
+            <div class="page-header">
+                <h2>Pending Employee Registrations</h2>
+                <p>Review and approve or reject employee registration requests</p>
+            </div>
+
+            <div id="registrations-container">
+                <div class="loading">Loading pending registrations...</div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        async function loadPendingRegistrations() {
+            try {
+                const response = await fetch('/api/admin/pending-registrations');
+                const data = await response.json();
+
+                if (data.success) {
+                    displayRegistrations(data.registrations);
+                } else {
+                    document.getElementById('registrations-container').innerHTML =
+                        '<div class="error">Error loading registrations</div>';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('registrations-container').innerHTML =
+                    '<div class="error">Error loading registrations: ' + error.message + '</div>';
+            }
+        }
+
+        function displayRegistrations(registrations) {
+            const container = document.getElementById('registrations-container');
+
+            if (registrations.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No Pending Registrations</h3>
+                        <p>All registration requests have been processed</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const html = registrations.map(reg => `
+                <div class="registration-card" id="registration-${reg.id}">
+                    <div class="registration-header">
+                        <div class="registration-info">
+                            <div class="registration-name">
+                                ${reg.first_name} ${reg.last_name}
+                            </div>
+                            <div style="color: #64748b;">Requested: ${new Date(reg.created_at).toLocaleString()}</div>
+                        </div>
+                    </div>
+
+                    <div class="registration-details">
+                        <div class="detail-item">
+                            <span class="detail-label">Username</span>
+                            <div class="detail-value">${reg.username}</div>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Email</span>
+                            <div class="detail-value">${reg.email}</div>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Employee ID</span>
+                            <div class="detail-value">${reg.employee_id}</div>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Position</span>
+                            <div class="detail-value">${reg.position}</div>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Department</span>
+                            <div class="detail-value">${reg.department || 'N/A'}</div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="notes-${reg.id}" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">
+                            Admin Notes (Optional)
+                        </label>
+                        <textarea
+                            id="notes-${reg.id}"
+                            class="notes-input"
+                            placeholder="Add notes about this approval/rejection..."
+                            rows="2"
+                        ></textarea>
+                    </div>
+
+                    <div class="action-buttons">
+                        <button
+                            class="btn btn-approve"
+                            onclick="approveRegistration(${reg.id})"
+                        >
+                            Approve Registration
+                        </button>
+                        <button
+                            class="btn btn-reject"
+                            onclick="rejectRegistration(${reg.id})"
+                        >
+                            Reject Registration
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+
+            container.innerHTML = html;
+        }
+
+        async function approveRegistration(registrationId) {
+            const notes = document.getElementById(`notes-${registrationId}`).value;
+
+            if (!confirm('Are you sure you want to approve this registration?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/admin/approve-registration', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ registration_id: registrationId, notes })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert('Registration approved successfully!');
+                    document.getElementById(`registration-${registrationId}`).remove();
+
+                    const remainingCards = document.querySelectorAll('.registration-card');
+                    if (remainingCards.length === 0) {
+                        loadPendingRegistrations();
+                    }
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            } catch (error) {
+                alert('Error approving registration: ' + error.message);
+            }
+        }
+
+        async function rejectRegistration(registrationId) {
+            const notes = document.getElementById(`notes-${registrationId}`).value;
+
+            if (!notes.trim()) {
+                alert('Please provide a reason for rejection in the notes field');
+                return;
+            }
+
+            if (!confirm('Are you sure you want to reject this registration?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/admin/reject-registration', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ registration_id: registrationId, notes })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert('Registration rejected');
+                    document.getElementById(`registration-${registrationId}`).remove();
+
+                    const remainingCards = document.querySelectorAll('.registration-card');
+                    if (remainingCards.length === 0) {
+                        loadPendingRegistrations();
+                    }
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            } catch (error) {
+                alert('Error rejecting registration: ' + error.message);
+            }
+        }
+
+        async function logout() {
+            try {
+                const response = await fetch('/api/auth/logout', { method: 'POST' });
+                const result = await response.json();
+
+                if (result.success) {
+                    window.location.href = '/login';
+                }
+            } catch (error) {
+                console.error('Error logging out:', error);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', loadPendingRegistrations);
+    </script>
+</body>
+</html>

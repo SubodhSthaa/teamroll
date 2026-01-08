@@ -4,9 +4,14 @@ Handles SQLite database initialization and connections
 """
 
 import sqlite3
+import hashlib
 import os
 
 DATABASE_PATH = 'teamroll.db'
+
+DEFAULT_ADMIN_USERNAME = 'admin'
+DEFAULT_ADMIN_PASSWORD = 'admin123'
+DEFAULT_ADMIN_EMAIL = 'admin@teamroll.local'
 
 def get_db_connection():
     """Get database connection"""
@@ -71,7 +76,70 @@ def init_database():
             FOREIGN KEY (employee_id) REFERENCES employees (employee_id)
         )
     ''')
-    
+
+    # Create users table for authentication
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            role TEXT NOT NULL CHECK(role IN ('admin', 'employee')),
+            employee_id TEXT,
+            email TEXT UNIQUE NOT NULL,
+            is_active INTEGER DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (employee_id) REFERENCES employees (employee_id)
+        )
+    ''')
+
+    # Create sessions table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id TEXT UNIQUE NOT NULL,
+            user_id INTEGER NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            expires_at TIMESTAMP NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    ''')
+
+    # Create pending registrations table for employee approval workflow
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS pending_registrations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            employee_id TEXT NOT NULL,
+            status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'rejected')),
+            admin_notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            reviewed_at TIMESTAMP,
+            reviewed_by INTEGER,
+            FOREIGN KEY (employee_id) REFERENCES employees (employee_id),
+            FOREIGN KEY (reviewed_by) REFERENCES users (id)
+        )
+    ''')
+
+    # Create default admin account if it doesn't exist
+    cursor.execute('SELECT * FROM users WHERE username = ?', (DEFAULT_ADMIN_USERNAME,))
+    if not cursor.fetchone():
+        password_hash = hashlib.sha256(DEFAULT_ADMIN_PASSWORD.encode()).hexdigest()
+        cursor.execute('''
+            INSERT INTO users (username, password_hash, role, email)
+            VALUES (?, ?, 'admin', ?)
+        ''', (DEFAULT_ADMIN_USERNAME, password_hash, DEFAULT_ADMIN_EMAIL))
+        print(f"\n{'='*60}")
+        print("DEFAULT ADMIN ACCOUNT CREATED")
+        print(f"{'='*60}")
+        print(f"Username: {DEFAULT_ADMIN_USERNAME}")
+        print(f"Password: {DEFAULT_ADMIN_PASSWORD}")
+        print(f"Email: {DEFAULT_ADMIN_EMAIL}")
+        print(f"{'='*60}")
+        print("IMPORTANT: Change the default password after first login!")
+        print(f"{'='*60}\n")
+
     conn.commit()
     conn.close()
     print("Database initialized successfully!")
