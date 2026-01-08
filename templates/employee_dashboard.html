@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Dashboard - TeamRoll</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        .employee-info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+        .info-item {
+            padding: 1rem;
+            background: #f8fafc;
+            border-radius: 8px;
+            border: 2px solid #e2e8f0;
+        }
+        .info-item label {
+            display: block;
+            color: #64748b;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        .info-item .value {
+            color: #1e293b;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="nav-brand">
+                <h1>TeamRoll</h1>
+                <span class="tagline">Employee Portal</span>
+            </div>
+            <nav class="nav-menu">
+                <a href="/dashboard" class="nav-link active">Dashboard</a>
+                <a href="/payroll" class="nav-link">My Payroll</a>
+                <a href="/attendance" class="nav-link">Attendance</a>
+                <a href="#" onclick="logout()" class="nav-link">Logout</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main dashboard">
+        <div class="container">
+            <div class="dashboard-header">
+                <h2>Welcome, <span id="employee-name">Employee</span></h2>
+                <p>View your information, payroll, and attendance</p>
+            </div>
+
+            <div class="dashboard-stats">
+                <div class="stat-card">
+                    <div class="stat-icon">👤</div>
+                    <div class="stat-content">
+                        <h3 id="employee-id">N/A</h3>
+                        <p>Employee ID</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">💼</div>
+                    <div class="stat-content">
+                        <h3 id="position">N/A</h3>
+                        <p>Position</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🏢</div>
+                    <div class="stat-content">
+                        <h3 id="department">N/A</h3>
+                        <p>Department</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📅</div>
+                    <div class="stat-content">
+                        <h3 id="attendance-status">N/A</h3>
+                        <p>Today's Status</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dashboard-content">
+                <div class="dashboard-section">
+                    <h3>My Information</h3>
+                    <div class="employee-info-grid" id="employee-info">
+                        <div class="loading">Loading your information...</div>
+                    </div>
+                </div>
+
+                <div class="dashboard-section">
+                    <h3>Quick Actions</h3>
+                    <div class="quick-actions">
+                        <a href="#" onclick="checkIn(); return false;" class="action-card">
+                            <div class="action-icon">🕐</div>
+                            <h4>Check In</h4>
+                            <p>Mark your attendance</p>
+                        </a>
+                        <a href="#" onclick="checkOut(); return false;" class="action-card">
+                            <div class="action-icon">🕔</div>
+                            <h4>Check Out</h4>
+                            <p>End your workday</p>
+                        </a>
+                        <a href="/payroll" class="action-card">
+                            <div class="action-icon">💰</div>
+                            <h4>View Payslips</h4>
+                            <p>Access your payment history</p>
+                        </a>
+                        <a href="/attendance" class="action-card">
+                            <div class="action-icon">📊</div>
+                            <h4>Attendance History</h4>
+                            <p>View your attendance records</p>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let currentUser = null;
+        let employeeData = null;
+
+        async function loadCurrentUser() {
+            try {
+                const response = await fetch('/api/auth/me');
+                const data = await response.json();
+
+                if (data.success) {
+                    currentUser = data.user;
+                    const displayName = currentUser.first_name ?
+                        `${currentUser.first_name} ${currentUser.last_name}` :
+                        currentUser.username;
+                    document.getElementById('employee-name').textContent = displayName;
+
+                    if (currentUser.employee_id) {
+                        await loadEmployeeInfo();
+                        await loadAttendanceStatus();
+                    }
+                } else {
+                    window.location.href = '/login';
+                }
+            } catch (error) {
+                console.error('Error loading user:', error);
+                window.location.href = '/login';
+            }
+        }
+
+        async function loadEmployeeInfo() {
+            try {
+                const response = await fetch(`/api/employees/${currentUser.employee_id}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    employeeData = data.employee;
+                    document.getElementById('employee-id').textContent = employeeData.employee_id;
+                    document.getElementById('position').textContent = employeeData.position;
+                    document.getElementById('department').textContent = employeeData.department || 'N/A';
+
+                    const infoContainer = document.getElementById('employee-info');
+                    infoContainer.innerHTML = `
+                        <div class="info-item">
+                            <label>Full Name</label>
+                            <div class="value">${employeeData.first_name} ${employeeData.last_name}</div>
+                        </div>
+                        <div class="info-item">
+                            <label>Email</label>
+                            <div class="value">${employeeData.email}</div>
+                        </div>
+                        <div class="info-item">
+                            <label>Phone</label>
+                            <div class="value">${employeeData.phone || 'N/A'}</div>
+                        </div>
+                        <div class="info-item">
+                            <label>Hire Date</label>
+                            <div class="value">${new Date(employeeData.hire_date).toLocaleDateString()}</div>
+                        </div>
+                        <div class="info-item">
+                            <label>Base Salary</label>
+                            <div class="value">$${parseFloat(employeeData.base_salary).toFixed(2)}</div>
+                        </div>
+                        <div class="info-item">
+                            <label>Status</label>
+                            <div class="value">${employeeData.status}</div>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading employee info:', error);
+            }
+        }
+
+        async function loadAttendanceStatus() {
+            try {
+                const response = await fetch(`/api/attendance/status/${currentUser.employee_id}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    const statusElement = document.getElementById('attendance-status');
+                    if (data.has_checked_in && !data.has_checked_out) {
+                        statusElement.textContent = 'Checked In';
+                        statusElement.style.color = '#059669';
+                    } else if (data.has_checked_out) {
+                        statusElement.textContent = 'Checked Out';
+                        statusElement.style.color = '#0369a1';
+                    } else {
+                        statusElement.textContent = 'Not Checked In';
+                        statusElement.style.color = '#dc2626';
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading attendance status:', error);
+            }
+        }
+
+        async function checkIn() {
+            try {
+                const response = await fetch('/api/attendance/checkin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ employee_id: currentUser.employee_id })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert(`Check-in successful! Time: ${result.check_in_time}`);
+                    loadAttendanceStatus();
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            } catch (error) {
+                alert('Error checking in: ' + error.message);
+            }
+        }
+
+        async function checkOut() {
+            try {
+                const response = await fetch('/api/attendance/checkout', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ employee_id: currentUser.employee_id })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert(`Check-out successful! Time: ${result.check_out_time}\nHours worked: ${result.hours_worked}`);
+                    loadAttendanceStatus();
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            } catch (error) {
+                alert('Error checking out: ' + error.message);
+            }
+        }
+
+        async function logout() {
+            try {
+                const response = await fetch('/api/auth/logout', { method: 'POST' });
+                const result = await response.json();
+
+                if (result.success) {
+                    window.location.href = '/login';
+                }
+            } catch (error) {
+                console.error('Error logging out:', error);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', loadCurrentUser);
+    </script>
+</body>
+</html>

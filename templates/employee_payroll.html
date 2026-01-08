@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Payroll - TeamRoll</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        .payslip-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            margin-bottom: 1.5rem;
+            border: 2px solid #e2e8f0;
+        }
+        .payslip-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #e2e8f0;
+            margin-bottom: 1rem;
+        }
+        .payslip-period {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+        .payslip-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        .payslip-item {
+            padding: 1rem;
+            background: #f8fafc;
+            border-radius: 8px;
+        }
+        .payslip-item label {
+            display: block;
+            color: #64748b;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+        .payslip-item .amount {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #1e293b;
+        }
+        .payslip-item.gross {
+            background: #dbeafe;
+        }
+        .payslip-item.deduction {
+            background: #fee2e2;
+        }
+        .payslip-item.net {
+            background: #d1fae5;
+        }
+        .payslip-item.net .amount {
+            color: #059669;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="nav-brand">
+                <h1>TeamRoll</h1>
+                <span class="tagline">My Payroll</span>
+            </div>
+            <nav class="nav-menu">
+                <a href="/dashboard" class="nav-link">Dashboard</a>
+                <a href="/payroll" class="nav-link active">My Payroll</a>
+                <a href="/attendance" class="nav-link">Attendance</a>
+                <a href="#" onclick="logout()" class="nav-link">Logout</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="container">
+            <div class="page-header">
+                <h2>My Payroll History</h2>
+            </div>
+
+            <div class="payroll-section">
+                <h3>Payroll Summary</h3>
+                <div id="payroll-summary">
+                    <div class="loading">Loading payroll data...</div>
+                </div>
+            </div>
+
+            <div class="payroll-section">
+                <h3>Payslip History</h3>
+                <div class="payroll-records" id="payroll-records">
+                    <div class="loading">Loading records...</div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let currentUser = null;
+
+        async function loadCurrentUser() {
+            try {
+                const response = await fetch('/api/auth/me');
+                const data = await response.json();
+
+                if (data.success) {
+                    currentUser = data.user;
+                    if (currentUser.employee_id) {
+                        await loadPayrollData();
+                    }
+                } else {
+                    window.location.href = '/login';
+                }
+            } catch (error) {
+                console.error('Error loading user:', error);
+                window.location.href = '/login';
+            }
+        }
+
+        async function loadPayrollData() {
+            try {
+                const response = await fetch('/api/payroll');
+                const data = await response.json();
+
+                if (data.success || data.records) {
+                    const records = data.records || [];
+                    const myPayrolls = records.filter(
+                        record => record.employee_id === currentUser.employee_id
+                    );
+
+                    displayPayrollSummary(myPayrolls);
+                    displayPayrollRecords(myPayrolls);
+                }
+            } catch (error) {
+                document.getElementById('payroll-summary').innerHTML =
+                    '<div class="error">Error loading payroll data: ' + error.message + '</div>';
+            }
+        }
+
+        function displayPayrollSummary(payrolls) {
+            const container = document.getElementById('payroll-summary');
+
+            if (payrolls.length === 0) {
+                container.innerHTML = '<div class="empty-state">No payroll records found yet.</div>';
+                return;
+            }
+
+            const totalGross = payrolls.reduce((sum, p) => sum + (parseFloat(p.gross_pay) || 0), 0);
+            const totalTax = payrolls.reduce((sum, p) => sum + (parseFloat(p.tax_deductions) || 0), 0);
+            const totalNet = payrolls.reduce((sum, p) => sum + (parseFloat(p.net_pay) || 0), 0);
+
+            container.innerHTML = `
+                <div class="summary-grid">
+                    <div class="summary-item">
+                        <h4>Total Payslips</h4>
+                        <p class="summary-value">${payrolls.length}</p>
+                    </div>
+                    <div class="summary-item">
+                        <h4>Total Gross Pay</h4>
+                        <p class="summary-value">$${totalGross.toFixed(2)}</p>
+                    </div>
+                    <div class="summary-item">
+                        <h4>Total Tax Deductions</h4>
+                        <p class="summary-value">$${totalTax.toFixed(2)}</p>
+                    </div>
+                    <div class="summary-item">
+                        <h4>Total Net Pay</h4>
+                        <p class="summary-value" style="color: #059669;">$${totalNet.toFixed(2)}</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function displayPayrollRecords(payrolls) {
+            const container = document.getElementById('payroll-records');
+
+            if (payrolls.length === 0) {
+                container.innerHTML = '<div class="empty-state">No payslip records found.</div>';
+                return;
+            }
+
+            const recordsHtml = payrolls.map(record => `
+                <div class="payslip-card">
+                    <div class="payslip-header">
+                        <div class="payslip-period">
+                            Pay Period: ${record.pay_period_start} to ${record.pay_period_end}
+                        </div>
+                        <span class="status-badge status-${record.status}">${record.status}</span>
+                    </div>
+
+                    <div class="payslip-grid">
+                        <div class="payslip-item">
+                            <label>Base Salary</label>
+                            <div class="amount">$${parseFloat(record.base_salary).toFixed(2)}</div>
+                        </div>
+                        <div class="payslip-item">
+                            <label>Bonuses</label>
+                            <div class="amount">$${parseFloat(record.bonuses).toFixed(2)}</div>
+                        </div>
+                        <div class="payslip-item gross">
+                            <label>Gross Pay</label>
+                            <div class="amount">$${parseFloat(record.gross_pay).toFixed(2)}</div>
+                        </div>
+                    </div>
+
+                    <div class="payslip-grid">
+                        <div class="payslip-item deduction">
+                            <label>Tax Deductions</label>
+                            <div class="amount">-$${parseFloat(record.tax_deductions).toFixed(2)}</div>
+                        </div>
+                        <div class="payslip-item deduction">
+                            <label>Other Deductions</label>
+                            <div class="amount">-$${parseFloat(record.deductions).toFixed(2)}</div>
+                        </div>
+                        <div class="payslip-item net">
+                            <label>Net Pay</label>
+                            <div class="amount">$${parseFloat(record.net_pay).toFixed(2)}</div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 0.9rem;">
+                        Processed on: ${new Date(record.created_at).toLocaleDateString()}
+                    </div>
+                </div>
+            `).join('');
+
+            container.innerHTML = recordsHtml;
+        }
+
+        async function logout() {
+            try {
+                const response = await fetch('/api/auth/logout', { method: 'POST' });
+                const result = await response.json();
+
+                if (result.success) {
+                    window.location.href = '/login';
+                }
+            } catch (error) {
+                console.error('Error logging out:', error);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', loadCurrentUser);
+    </script>
+</body>
+</html>

@@ -8,11 +8,13 @@ import json
 import sqlite3
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
+from http import cookies
 import os
 from modules.hr_service import HRService
 from modules.payroll_service import PayrollService
 from modules.accounting_service import AccountingService
 from modules.attendance_service import AttendanceService
+from modules.auth_service import AuthService
 
 
 class TeamRollHandler(BaseHTTPRequestHandler):
@@ -21,7 +23,25 @@ class TeamRollHandler(BaseHTTPRequestHandler):
         self.payroll_service = PayrollService()
         self.accounting_service = AccountingService()
         self.attendance_service = AttendanceService()
+        self.auth_service = AuthService()
         super().__init__(*args, **kwargs)
+
+    def get_session_id(self):
+        """Extract session ID from cookies"""
+        cookie_header = self.headers.get('Cookie')
+        if cookie_header:
+            cookie = cookies.SimpleCookie()
+            cookie.load(cookie_header)
+            if 'session_id' in cookie:
+                return cookie['session_id'].value
+        return None
+
+    def get_current_user(self):
+        """Get current authenticated user"""
+        session_id = self.get_session_id()
+        if session_id:
+            return self.auth_service.verify_session(session_id)
+        return None
 
     def do_GET(self):
         parsed_path = urlparse(self.path)
@@ -47,7 +67,12 @@ class TeamRollHandler(BaseHTTPRequestHandler):
         file_path = path[1:]
 
         if os.path.exists(file_path):
-            content_type = 'text/css' if path.endswith('.css') else 'text/plain'
+            if path.endswith('.css'):
+                content_type = 'text/css'
+            elif path.endswith('.js'):
+                content_type = 'application/javascript'
+            else:
+                content_type = 'text/plain'
 
             self.send_response(200)
             self.send_header('Content-type', content_type)
@@ -227,7 +252,7 @@ class TeamRollHandler(BaseHTTPRequestHandler):
                     return
                 result = self.auth_service.approve_registration(
                     data['registration_id'],
-                    user['user_id'],
+                    user['id'],
                     data.get('notes', '')
                 )
                 self.send_json_response(result)
@@ -238,7 +263,7 @@ class TeamRollHandler(BaseHTTPRequestHandler):
                     return
                 result = self.auth_service.reject_registration(
                     data['registration_id'],
-                    user['user_id'],
+                    user['id'],
                     data.get('notes', '')
                 )
                 self.send_json_response(result)
