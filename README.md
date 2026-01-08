@@ -11,7 +11,7 @@ It provides a simple, cost-effective, and powerful solution for managing payroll
 - Payslip generation and reporting
 - Centralized HR database for employee management
 - Tax & compliance support
-- Role-based access (Admin, Manager, Employee)
+- Role-based access (Admin, Employee)
 
 ---
 
