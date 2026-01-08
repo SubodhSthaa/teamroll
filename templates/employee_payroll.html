@@ -101,6 +101,7 @@
         </div>
     </main>
 
+    <script src="/static/app.js"></script>
     <script>
         let currentUser = null;
 
@@ -231,19 +232,6 @@
             `).join('');
 
             container.innerHTML = recordsHtml;
-        }
-
-        async function logout() {
-            try {
-                const response = await fetch('/api/auth/logout', { method: 'POST' });
-                const result = await response.json();
-
-                if (result.success) {
-                    window.location.href = '/login';
-                }
-            } catch (error) {
-                console.error('Error logging out:', error);
-            }
         }
 
         document.addEventListener('DOMContentLoaded', loadCurrentUser);

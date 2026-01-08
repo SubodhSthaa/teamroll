@@ -85,8 +85,9 @@ class TeamRollHandler(BaseHTTPRequestHandler):
 
     def serve_template(self, path):
         public_pages = ['/', '/index.html', '/login', '/register']
+        is_public = path in public_pages
 
-        if path in public_pages:
+        if is_public:
             if path == '/' or path == '/index.html':
                 template_path = 'templates/index.html'
             elif path == '/login':
@@ -98,6 +99,9 @@ class TeamRollHandler(BaseHTTPRequestHandler):
             if not user:
                 self.send_response(302)
                 self.send_header('Location', '/login')
+                self.send_header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+                self.send_header('Pragma', 'no-cache')
+                self.send_header('Expires', '0')
                 self.end_headers()
                 return
 
@@ -132,6 +136,12 @@ class TeamRollHandler(BaseHTTPRequestHandler):
         if os.path.exists(template_path):
             self.send_response(200)
             self.send_header('Content-type', 'text/html')
+
+            if not is_public:
+                self.send_header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+                self.send_header('Pragma', 'no-cache')
+                self.send_header('Expires', '0')
+
             self.end_headers()
 
             with open(template_path, 'rb') as f:

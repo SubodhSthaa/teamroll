@@ -156,6 +156,7 @@
         </div>
     </main>
 
+    <script src="/static/app.js"></script>
     <script>
         let currentUser = null;
 
@@ -279,29 +280,6 @@
             if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`;
             if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
             return `${Math.floor(seconds / 86400)} days ago`;
-        }
-
-        async function logout() {
-            try {
-                const response = await fetch('/api/auth/logout', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    window.location.href = '/login';
-                } else {
-                    console.error('Logout failed:', result.message);
-                    window.location.href = '/login';
-                }
-            } catch (error) {
-                console.error('Error logging out:', error);
-                window.location.href = '/login';
-            }
         }
 
         document.addEventListener('DOMContentLoaded', () => {

@@ -29,12 +29,38 @@ async function apiCall(endpoint, options = {}) {
             },
             ...options
         });
-        
+
         const data = await response.json();
         return data;
     } catch (error) {
         console.error('API call failed:', error);
         throw error;
+    }
+}
+
+// Authentication functions
+async function logout() {
+    try {
+        await fetch('/api/auth/logout', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+    } catch (error) {
+        console.error('Logout error:', error);
+    } finally {
+        window.location.replace('/login');
+    }
+}
+
+async function checkAuth() {
+    try {
+        const response = await fetch('/api/auth/me');
+        const data = await response.json();
+        return data.success ? data.user : null;
+    } catch (error) {
+        return null;
     }
 }
 

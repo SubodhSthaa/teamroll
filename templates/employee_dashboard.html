@@ -165,6 +165,7 @@
         </div>
     </main>
 
+    <script src="/static/app.js"></script>
     <script>
         let currentUser = null;
         let employeeData = null;
@@ -342,29 +343,6 @@
                 }
             } catch (error) {
                 alert('Error checking out: ' + error.message);
-            }
-        }
-
-        async function logout() {
-            try {
-                const response = await fetch('/api/auth/logout', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    window.location.href = '/login';
-                } else {
-                    console.error('Logout failed:', result.message);
-                    window.location.href = '/login';
-                }
-            } catch (error) {
-                console.error('Error logging out:', error);
-                window.location.href = '/login';
             }
         }
 
