@@ -56,12 +56,22 @@ class TeamRollHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         parsed_path = urlparse(self.path)
-        path = parsed_path.path
+        path= parsed_path.path
 
+        if path == '/api/auth/logout':
+            session_id= self.get_session_id()
+            if session_id:
+                self.auth_service.logout(session_id)
+
+                self.send_response(200)
+                self.send_header('Set-Cookie', 'session_id=; Path=/; HttpOnly; expires=Thu, 01 Jan 1970 00:00:00 GMT')
+                self.end_headers()
+        
         if path.startswith('/api/'):
             self.handle_api_post(path)
-        else:
-            self.send_error(404)
+            return
+        self.send_error(404)
+
 
     def serve_static_file(self, path):
         file_path = path[1:]
@@ -249,14 +259,15 @@ class TeamRollHandler(BaseHTTPRequestHandler):
                 session_id = self.get_session_id()
                 result = self.auth_service.logout(session_id)
                 if result['success']:
-                    self.send_response(200)
-                    self.send_header('Content-type', 'application/json')
-                    self.send_header('Set-Cookie', 'session_id=; Path=/; HttpOnly; Max-Age=0')
+                    self.send_response(302)
+                    self.send_header(
+                             'Set-Cookie',
+                            'session_id=; Path=/; HttpOnly; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+                            )
+                    self.send_header('Location', '/login')
                     self.end_headers()
-                    response = json.dumps(result, indent=2)
-                    self.wfile.write(response.encode('utf-8'))
                 else:
-                    self.send_json_response(result)
+                    self.send_json_response(result, 400)
                 return
             elif path == '/api/admin/approve-registration':
                 user = self.get_current_user()
@@ -293,6 +304,11 @@ class TeamRollHandler(BaseHTTPRequestHandler):
 
         response = json.dumps(data, indent=2)
         self.wfile.write(response.encode('utf-8'))
+    
+    def self_render_template(self, template_path, context):
+        self.send_header("Cache-Control", "no-store, no-cache, must-revalidate")
+        self.send_header("Pragma", "no-cache")
+
 
 
 def run_server(port=8080):

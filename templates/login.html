@@ -127,6 +127,20 @@
                 errorDiv.style.display = 'block';
             }
         }
+         // Wait a bit before checking auth status
+    setTimeout(() => {
+        // Skip auth check if we just logged out
+        if (!window.location.search.includes('logout=true')) {
+            fetch('/api/auth/me')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.replace('/dashboard');
+                    }
+                })
+                .catch(() => {});
+        }
+    }, 100); // Small delay
 
         fetch('/api/auth/me')
             .then(res => res.json())

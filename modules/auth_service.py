@@ -217,13 +217,15 @@ class AuthService:
         """Delete session (logout)"""
         try:
             if not session_id:
+                print("logout: No session ID provided")
                 return {
                     'success': True,
-                    'message': 'No active session'
+                    'message': 'no active session'
                 }
-
-            query = 'DELETE FROM sessions WHERE session_id = ?'
-            rows_deleted = execute_query(query, (session_id,))
+            print(f"logout: Attempting to logout session ID {session_id}")
+            query='DELETE FROM sessions WHERE session_id = ?'
+            execute_query(query, (session_id,))
+            print(f"logout: Successfully logged out session ID ")
 
             return {
                 'success': True,
@@ -331,3 +333,16 @@ class AuthService:
             execute_query(query)
         except Exception as e:
             print(f"Error cleaning up sessions: {e}")
+    
+    def check_active_sessions(self, user_id=None):
+        """Check active sessions for debugging"""
+        try:
+            if user_id:
+                query = "SELECT * FROM sessions WHERE user_id = ?"
+                return execute_query(query, (user_id,))
+            else:
+                query = "SELECT COUNT(*) as count FROM sessions"
+            return execute_query(query)
+        except Exception as e:
+            print(f"Error checking sessions: {e}")
+        return []
