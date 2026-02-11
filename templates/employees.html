@@ -28,17 +28,17 @@
         <div class="container">
             <div class="page-header">
                 <h2>Employee Management</h2>
-                <button class="btn btn-primary" onclick="showAddEmployeeForm()">Add New Employee</button>
+                <button class="btn btn-primary" onclick="openEmployeeForm()">Add New Employee</button>
             </div>
 
-            <!-- Add Employee Form -->
-            <div id="add-employee-form" class="form-modal" style="display: none;">
+            <div id="employee-form-modal" class="form-modal" style="display: none;">
                 <div class="form-container">
                     <div class="form-header">
-                        <h3>Add New Employee</h3>
-                        <button class="close-btn" onclick="hideAddEmployeeForm()">&times;</button>
+                        <h3 id="employee-form-title">Add New Employee</h3>
+                        <button class="close-btn" onclick="closeEmployeeForm()">&times;</button>
                     </div>
-                    <form id="employee-form" onsubmit="addEmployee(event)">
+                    <form id="employee-form" onsubmit="saveEmployee(event)">
+                        <input type="hidden" id="employee_id" name="employee_id">
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="first_name">First Name</label>
@@ -80,14 +80,13 @@
                             </div>
                         </div>
                         <div class="form-actions">
-                            <button type="button" class="btn btn-secondary" onclick="hideAddEmployeeForm()">Cancel</button>
-                            <button type="submit" class="btn btn-primary">Add Employee</button>
+                            <button type="button" class="btn btn-secondary" onclick="closeEmployeeForm()">Cancel</button>
+                            <button type="submit" id="employee-submit-btn" class="btn btn-primary">Add Employee</button>
                         </div>
                     </form>
                 </div>
             </div>
 
-            <!-- Employee List -->
             <div class="employees-section">
                 <div class="section-header">
                     <h3>Employee Directory</h3>
@@ -95,7 +94,7 @@
                         <input type="text" id="search-input" placeholder="Search employees..." onkeyup="filterEmployees()">
                     </div>
                 </div>
-                
+
                 <div class="employees-grid" id="employees-list">
                     <div class="loading">Loading employees...</div>
                 </div>
@@ -105,101 +104,176 @@
 
     <script>
         let employees = [];
+        let editingEmployeeId = null;
 
-        // Show/hide add employee form
-        function showAddEmployeeForm() {
-            document.getElementById('add-employee-form').style.display = 'flex';
+        function openEmployeeForm(employee = null) {
+            const form = document.getElementById('employee-form');
+            const modal = document.getElementById('employee-form-modal');
+            const title = document.getElementById('employee-form-title');
+            const submitButton = document.getElementById('employee-submit-btn');
+
+            form.reset();
+
+            if (employee) {
+                editingEmployeeId = employee.employee_id;
+                document.getElementById('employee_id').value = employee.employee_id;
+                document.getElementById('first_name').value = employee.first_name || '';
+                document.getElementById('last_name').value = employee.last_name || '';
+                document.getElementById('email').value = employee.email || '';
+                document.getElementById('phone').value = employee.phone || '';
+                document.getElementById('position').value = employee.position || '';
+                document.getElementById('department').value = employee.department || '';
+                document.getElementById('hire_date').value = employee.hire_date || '';
+                document.getElementById('base_salary').value = employee.base_salary || '';
+                title.textContent = 'Update Employee';
+                submitButton.textContent = 'Update Employee';
+            } else {
+                editingEmployeeId = null;
+                document.getElementById('employee_id').value = '';
+                title.textContent = 'Add New Employee';
+                submitButton.textContent = 'Add Employee';
+            }
+
+            modal.style.display = 'flex';
         }
 
-        function hideAddEmployeeForm() {
-            document.getElementById('add-employee-form').style.display = 'none';
+        function closeEmployeeForm() {
+            document.getElementById('employee-form-modal').style.display = 'none';
             document.getElementById('employee-form').reset();
+            editingEmployeeId = null;
         }
 
-        // Add new employee
-        async function addEmployee(event) {
+        async function saveEmployee(event) {
             event.preventDefault();
-            
+
             const formData = new FormData(event.target);
             const employeeData = Object.fromEntries(formData.entries());
-            
+
             try {
-                const response = await fetch('/api/employees', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(employeeData)
-                });
-                
+                let response;
+                if (editingEmployeeId) {
+                    response = await fetch(`/api/employees/${editingEmployeeId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(employeeData),
+                    });
+                } else {
+                    response = await fetch('/api/employees', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(employeeData),
+                    });
+                }
+
                 const result = await response.json();
-                
+
                 if (result.success) {
-                    alert('Employee added successfully!');
-                    hideAddEmployeeForm();
+                    alert(editingEmployeeId ? 'Employee updated successfully!' : 'Employee added successfully!');
+                    closeEmployeeForm();
                     loadEmployees();
                 } else {
                     alert('Error: ' + result.message);
                 }
             } catch (error) {
-                alert('Error adding employee: ' + error.message);
+                alert('Error saving employee: ' + error.message);
             }
         }
 
-        // Load employees from API
+        async function deleteEmployee(employeeId) {
+            const employee = employees.find(item => item.employee_id === employeeId);
+            const fullName = employee ? `${employee.first_name} ${employee.last_name}` : employeeId;
+            const confirmed = confirm(`Are you sure you want to deactivate ${fullName}?`);
+            if (!confirmed) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/employees/${employeeId}`, {
+                    method: 'DELETE',
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert('Employee deactivated successfully!');
+                    loadEmployees();
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            } catch (error) {
+                alert('Error deactivating employee: ' + error.message);
+            }
+        }
+
         async function loadEmployees() {
             try {
                 const response = await fetch('/api/employees');
                 const data = await response.json();
-                
+
                 if (data.success) {
                     employees = data.employees;
                     displayEmployees(employees);
                 } else {
-                    document.getElementById('employees-list').innerHTML = 
+                    document.getElementById('employees-list').innerHTML =
                         '<div class="error">Error loading employees: ' + data.message + '</div>';
                 }
             } catch (error) {
-                document.getElementById('employees-list').innerHTML = 
+                document.getElementById('employees-list').innerHTML =
                     '<div class="error">Error loading employees: ' + error.message + '</div>';
             }
         }
 
-        // Display employees
         function displayEmployees(employeeList) {
             const container = document.getElementById('employees-list');
-            
+
             if (employeeList.length === 0) {
                 container.innerHTML = '<div class="empty-state">No employees found. Add your first employee to get started!</div>';
                 return;
             }
-            
-            const employeeCards = employeeList.map(employee => `
-                <div class="employee-card">
-                    <div class="employee-avatar">
-                        ${employee.first_name.charAt(0)}${employee.last_name.charAt(0)}
+
+            const employeeCards = employeeList.map(employee => {
+                const fullName = `${employee.first_name} ${employee.last_name}`;
+                return `
+                    <div class="employee-card">
+                        <div class="employee-avatar">
+                            ${employee.first_name.charAt(0)}${employee.last_name.charAt(0)}
+                        </div>
+                        <div class="employee-info">
+                            <h4>${fullName}</h4>
+                            <p class="employee-position">${employee.position}</p>
+                            <p class="employee-department">${employee.department || 'No Department'}</p>
+                            <p class="employee-email">${employee.email}</p>
+                            <p class="employee-salary">$${parseFloat(employee.base_salary).toFixed(2)}/month</p>
+                        </div>
+                        <div class="employee-actions">
+                            <button class="btn btn-small btn-warning" onclick="editEmployee('${employee.employee_id}')">Update</button>
+                            <button class="btn btn-small btn-danger" onclick="deleteEmployee('${employee.employee_id}')">Delete</button>
+                            <button class="btn btn-small btn-primary" onclick="processPayroll('${employee.employee_id}')">Payroll</button>
+                        </div>
                     </div>
-                    <div class="employee-info">
-                        <h4>${employee.first_name} ${employee.last_name}</h4>
-                        <p class="employee-position">${employee.position}</p>
-                        <p class="employee-department">${employee.department || 'No Department'}</p>
-                        <p class="employee-email">${employee.email}</p>
-                        <p class="employee-salary">$${parseFloat(employee.base_salary).toFixed(2)}/month</p>
-                    </div>
-                    <div class="employee-actions">
-                        <button class="btn btn-small btn-secondary" onclick="viewEmployee('${employee.employee_id}')">View</button>
-                        <button class="btn btn-small btn-primary" onclick="processPayroll('${employee.employee_id}')">Payroll</button>
-                    </div>
-                </div>
-            `).join('');
-            
+                `;
+            }).join('');
+
             container.innerHTML = employeeCards;
         }
 
-        // Filter employees
+
+        function editEmployee(employeeId) {
+            const employee = employees.find(item => item.employee_id === employeeId);
+            if (!employee) {
+                alert('Employee not found');
+                return;
+            }
+            openEmployeeForm(employee);
+        }
+
         function filterEmployees() {
             const searchTerm = document.getElementById('search-input').value.toLowerCase();
-            const filteredEmployees = employees.filter(employee => 
+            const filteredEmployees = employees.filter(employee =>
                 employee.first_name.toLowerCase().includes(searchTerm) ||
                 employee.last_name.toLowerCase().includes(searchTerm) ||
                 employee.position.toLowerCase().includes(searchTerm) ||
@@ -208,15 +282,10 @@
             displayEmployees(filteredEmployees);
         }
 
-        function viewEmployee(employeeId) {
-            alert(`View employee details for ID: ${employeeId}`);
-        }
-
         function processPayroll(employeeId) {
             window.location.href = `/payroll?employee=${employeeId}`;
         }
 
-        // Load employees when page loads
         document.addEventListener('DOMContentLoaded', loadEmployees);
     </script>
 </body>
