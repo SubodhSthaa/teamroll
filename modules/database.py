@@ -15,14 +15,18 @@ DEFAULT_ADMIN_EMAIL = 'admin@teamroll.local'
 
 def get_db_connection():
     """Get database connection"""
-    conn = sqlite3.connect(DATABASE_PATH)
+    conn = sqlite3.connect(DATABASE_PATH, timeout=30)
     conn.row_factory = sqlite3.Row  # Enable dict-like access to rows
+    conn.execute('PRAGMA busy_timeout = 5000')
     return conn
 
 def init_database():
     """Initialize database with required tables"""
     conn = get_db_connection()
     cursor = conn.cursor()
+
+    cursor.execute('PRAGMA journal_mode = WAL')
+    cursor.execute('PRAGMA synchronous = NORMAL')
     
     # Create employees table
     cursor.execute('''
@@ -147,18 +151,28 @@ def init_database():
 def execute_query(query, params=None):
     """Execute a query and return results"""
     conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    if params:
-        cursor.execute(query, params)
-    else:
-        cursor.execute(query)
-    
-    if query.strip().upper().startswith('SELECT'):
-        results = cursor.fetchall()
-        conn.close()
-        return [dict(row) for row in results]
-    else:
+
+    try:
+        cursor = conn.cursor()
+
+        if params:
+            cursor.execute(query, params)
+        else:
+            cursor.execute(query)
+
+        if query.strip().upper().startswith('SELECT'):
+            results = cursor.fetchall()
+            return [dict(row) for row in results]
+
         conn.commit()
-        conn.close()
         return cursor.rowcount
+    except sqlite3.OperationalError as exc:
+        conn.rollback()
+        if 'database is locked' in str(exc).lower():
+            raise RuntimeError('Database is busy. Please retry in a moment.') from exc
+        raise
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
