@@ -58,17 +58,26 @@ class TeamRollHandler(BaseHTTPRequestHandler):
         parsed_path = urlparse(self.path)
         path= parsed_path.path
 
-        if path == '/api/auth/logout':
-            session_id= self.get_session_id()
-            if session_id:
-                self.auth_service.logout(session_id)
-
-                self.send_response(200)
-                self.send_header('Set-Cookie', 'session_id=; Path=/; HttpOnly; expires=Thu, 01 Jan 1970 00:00:00 GMT')
-                self.end_headers()
-        
         if path.startswith('/api/'):
             self.handle_api_post(path)
+            return
+        self.send_error(404)
+
+    def do_PUT(self):
+        parsed_path = urlparse(self.path)
+        path = parsed_path.path
+
+        if path.startswith('/api/'):
+            self.handle_api_put(path)
+            return
+        self.send_error(404)
+
+    def do_DELETE(self):
+        parsed_path = urlparse(self.path)
+        path = parsed_path.path
+
+        if path.startswith('/api/'):
+            self.handle_api_delete(path)
             return
         self.send_error(404)
 
@@ -188,6 +197,14 @@ class TeamRollHandler(BaseHTTPRequestHandler):
                 emp_id = path.split('/')[-1]
                 status = self.attendance_service.get_today_status(emp_id)
                 self.send_json_response(status)
+            elif path == '/api/auth/logout':
+                session_id = self.get_session_id()
+                self.auth_service.logout(session_id)
+                self.send_response(302)
+                self.send_header('Set-Cookie', 'session_id=; Path=/; HttpOnly; Max-Age=0')
+                self.send_header('Location', '/login?logout=true')
+                self.end_headers()
+                return
             elif path == '/api/auth/me':
                 user = self.get_current_user()
                 if user:
@@ -226,6 +243,11 @@ class TeamRollHandler(BaseHTTPRequestHandler):
                 data = {}
 
             if path == '/api/employees':
+                user = self.get_current_user()
+                if not user or user['role'] != 'admin':
+                    self.send_json_response({'success': False, 'message': 'Admin access required'}, 403)
+                    return
+
                 result = self.hr_service.add_employee(data)
                 self.send_json_response(result)
             elif path == '/api/payroll/process':
@@ -259,13 +281,11 @@ class TeamRollHandler(BaseHTTPRequestHandler):
                 session_id = self.get_session_id()
                 result = self.auth_service.logout(session_id)
                 if result['success']:
-                    self.send_response(302)
-                    self.send_header(
-                             'Set-Cookie',
-                            'session_id=; Path=/; HttpOnly; expires=Thu, 01 Jan 1970 00:00:00 GMT'
-                            )
-                    self.send_header('Location', '/login')
+                    self.send_response(200)
+                    self.send_header('Content-type', 'application/json')
+                    self.send_header('Set-Cookie', 'session_id=; Path=/; HttpOnly; Max-Age=0')
                     self.end_headers()
+                    self.wfile.write(json.dumps(result, indent=2).encode('utf-8'))
                 else:
                     self.send_json_response(result, 400)
                 return
@@ -290,6 +310,45 @@ class TeamRollHandler(BaseHTTPRequestHandler):
                     user['id'],
                     data.get('notes', '')
                 )
+                self.send_json_response(result)
+            else:
+                self.send_error(404)
+        except Exception as e:
+            self.send_json_response({'error': str(e)}, 500)
+
+    def handle_api_put(self, path):
+        try:
+            content_length = self.headers.get('Content-Length')
+            if content_length:
+                put_data = self.rfile.read(int(content_length))
+                data = json.loads(put_data.decode('utf-8'))
+            else:
+                data = {}
+
+            if path.startswith('/api/employees/'):
+                user = self.get_current_user()
+                if not user or user['role'] != 'admin':
+                    self.send_json_response({'success': False, 'message': 'Admin access required'}, 403)
+                    return
+
+                emp_id = path.split('/')[-1]
+                result = self.hr_service.update_employee(emp_id, data)
+                self.send_json_response(result)
+            else:
+                self.send_error(404)
+        except Exception as e:
+            self.send_json_response({'error': str(e)}, 500)
+
+    def handle_api_delete(self, path):
+        try:
+            if path.startswith('/api/employees/'):
+                user = self.get_current_user()
+                if not user or user['role'] != 'admin':
+                    self.send_json_response({'success': False, 'message': 'Admin access required'}, 403)
+                    return
+
+                emp_id = path.split('/')[-1]
+                result = self.hr_service.deactivate_employee(emp_id)
                 self.send_json_response(result)
             else:
                 self.send_error(404)
