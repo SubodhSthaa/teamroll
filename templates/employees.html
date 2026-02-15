@@ -106,24 +106,6 @@
         let employees = [];
         let editingEmployeeId = null;
 
-
-        function logout() {
-            localStorage.clear();
-            sessionStorage.clear();
-
-            fetch('/api/auth/logout', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                credentials: 'include',
-                keepalive: true
-            }).catch((error) => {
-                console.error('Logout API error:', error);
-            });
-
-            window.location.href = '/login?logout=true&nocache=' + Date.now();
-            return false;
-        }
-
         function openEmployeeForm(employee = null) {
             const form = document.getElementById('employee-form');
             const modal = document.getElementById('employee-form-modal');
@@ -167,6 +149,49 @@
             const formData = new FormData(event.target);
             const employeeData = Object.fromEntries(formData.entries());
 
+            try {
+                let response;
+                if (editingEmployeeId) {
+                    response = await fetch(`/api/employees/${editingEmployeeId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(employeeData),
+                    });
+                } else {
+                    response = await fetch('/api/employees', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(employeeData),
+                    });
+                }
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert(editingEmployeeId ? 'Employee updated successfully!' : 'Employee added successfully!');
+                    closeEmployeeForm();
+                    loadEmployees();
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            } catch (error) {
+                alert('Error saving employee: ' + error.message);
+            }
+        }
+
+        async function deleteEmployee(employeeId) {
+            const employee = employees.find(item => item.employee_id === employeeId);
+            const fullName = employee ? `${employee.first_name} ${employee.last_name}` : employeeId;
+            const confirmed = confirm(`Are you sure you want to deactivate ${fullName}?`);
+            if (!confirmed) {
+                return;
+            }
+
+            try {
             try {
                 let response;
                 if (editingEmployeeId) {
@@ -265,7 +290,6 @@
                             <p class="employee-position">${employee.position}</p>
                             <p class="employee-department">${employee.department || 'No Department'}</p>
                             <p class="employee-email">${employee.email}</p>
-                            <p class="employee-id">ID: ${employee.employee_id}</p>
                             <p class="employee-salary">$${parseFloat(employee.base_salary).toFixed(2)}/month</p>
                         </div>
                         <div class="employee-actions">
