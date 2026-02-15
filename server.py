@@ -197,6 +197,14 @@ class TeamRollHandler(BaseHTTPRequestHandler):
                 emp_id = path.split('/')[-1]
                 status = self.attendance_service.get_today_status(emp_id)
                 self.send_json_response(status)
+            elif path == '/api/auth/logout':
+                session_id = self.get_session_id()
+                self.auth_service.logout(session_id)
+                self.send_response(302)
+                self.send_header('Set-Cookie', 'session_id=; Path=/; HttpOnly; Max-Age=0')
+                self.send_header('Location', '/login?logout=true')
+                self.end_headers()
+                return
             elif path == '/api/auth/me':
                 user = self.get_current_user()
                 if user:
@@ -273,13 +281,11 @@ class TeamRollHandler(BaseHTTPRequestHandler):
                 session_id = self.get_session_id()
                 result = self.auth_service.logout(session_id)
                 if result['success']:
-                    self.send_response(302)
-                    self.send_header(
-                             'Set-Cookie',
-                            'session_id=; Path=/; HttpOnly; expires=Thu, 01 Jan 1970 00:00:00 GMT'
-                            )
-                    self.send_header('Location', '/login')
+                    self.send_response(200)
+                    self.send_header('Content-type', 'application/json')
+                    self.send_header('Set-Cookie', 'session_id=; Path=/; HttpOnly; Max-Age=0')
                     self.end_headers()
+                    self.wfile.write(json.dumps(result, indent=2).encode('utf-8'))
                 else:
                     self.send_json_response(result, 400)
                 return

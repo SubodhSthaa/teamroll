@@ -39,24 +39,24 @@ async function apiCall(endpoint, options = {}) {
 }
 
 // Authentication functions
-async function logout() {
+function logout() {
     // Clear client storage
     localStorage.clear();
     sessionStorage.clear();
-    
-    // Make logout API call
-    try {
-        await fetch('/api/auth/logout', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            credentials: 'include'
-        });
-    } catch (error) {
+
+    // Fire-and-forget logout API call so navigation is not blocked/canceled.
+    fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        credentials: 'include',
+        keepalive: true
+    }).catch((error) => {
         console.error('Logout API error:', error);
-    }
-    
+    });
+
     // Force hard redirect with cache busting
     window.location.href = '/login?logout=true&nocache=' + Date.now();
+    return false;
 }
 
 async function checkAuth() {
