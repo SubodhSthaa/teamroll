@@ -192,6 +192,49 @@
             }
 
             try {
+            try {
+                let response;
+                if (editingEmployeeId) {
+                    response = await fetch(`/api/employees/${editingEmployeeId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(employeeData),
+                    });
+                } else {
+                    response = await fetch('/api/employees', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(employeeData),
+                    });
+                }
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert(editingEmployeeId ? 'Employee updated successfully!' : 'Employee added successfully!');
+                    closeEmployeeForm();
+                    loadEmployees();
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            } catch (error) {
+                alert('Error saving employee: ' + error.message);
+            }
+        }
+
+        async function deleteEmployee(employeeId) {
+            const employee = employees.find(item => item.employee_id === employeeId);
+            const fullName = employee ? `${employee.first_name} ${employee.last_name}` : employeeId;
+            const confirmed = confirm(`Are you sure you want to deactivate ${fullName}?`);
+            if (!confirmed) {
+                return;
+            }
+
+            try {
                 const response = await fetch(`/api/employees/${employeeId}`, {
                     method: 'DELETE',
                 });
@@ -250,6 +293,7 @@
                             <p class="employee-salary">$${parseFloat(employee.base_salary).toFixed(2)}/month</p>
                         </div>
                         <div class="employee-actions">
+                            <button class="btn btn-small btn-secondary" onclick="viewEmployeeId('${employee.employee_id}')">View ID</button>
                             <button class="btn btn-small btn-warning" onclick="editEmployee('${employee.employee_id}')">Update</button>
                             <button class="btn btn-small btn-danger" onclick="deleteEmployee('${employee.employee_id}')">Delete</button>
                             <button class="btn btn-small btn-primary" onclick="processPayroll('${employee.employee_id}')">Payroll</button>
@@ -261,6 +305,11 @@
             container.innerHTML = employeeCards;
         }
 
+
+
+        function viewEmployeeId(employeeId) {
+            alert(`Employee ID: ${employeeId}`);
+        }
 
         function editEmployee(employeeId) {
             const employee = employees.find(item => item.employee_id === employeeId);
