@@ -54,9 +54,11 @@ class HRService:
         """Get all employees"""
         try:
             query = '''
-                SELECT * FROM employees 
-                WHERE status = 'active'
-                ORDER BY last_name, first_name
+                SELECT * FROM employees
+                ORDER BY
+                    CASE WHEN status = 'active' THEN 0 ELSE 1 END,
+                    last_name,
+                    first_name
             '''
             employees = execute_query(query)
             

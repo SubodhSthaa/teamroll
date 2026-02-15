@@ -165,6 +165,26 @@ body {
     transform: translateY(-1px);
 }
 
+.btn-warning {
+    background: #f59e0b;
+    color: white;
+}
+
+.btn-warning:hover {
+    background: #d97706;
+    transform: translateY(-1px);
+}
+
+.btn-danger {
+    background: #ef4444;
+    color: white;
+}
+
+.btn-danger:hover {
+    background: #dc2626;
+    transform: translateY(-1px);
+}
+
 .btn-large {
     padding: 1rem 2rem;
     font-size: 1.1rem;
@@ -433,8 +453,15 @@ body {
     color: #059669 !important;
 }
 
+.employee-id,
+.employee-status {
+    font-weight: 600;
+    color: #475569 !important;
+}
+
 .employee-actions {
     display: flex;
+    flex-wrap: wrap;
     gap: 0.5rem;
     margin-top: 1rem;
 }
