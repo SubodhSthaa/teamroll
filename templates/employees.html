@@ -106,24 +106,6 @@
         let employees = [];
         let editingEmployeeId = null;
 
-
-        function logout() {
-            localStorage.clear();
-            sessionStorage.clear();
-
-            fetch('/api/auth/logout', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                credentials: 'include',
-                keepalive: true
-            }).catch((error) => {
-                console.error('Logout API error:', error);
-            });
-
-            window.location.href = '/login?logout=true&nocache=' + Date.now();
-            return false;
-        }
-
         function openEmployeeForm(employee = null) {
             const form = document.getElementById('employee-form');
             const modal = document.getElementById('employee-form-modal');
@@ -167,6 +149,49 @@
             const formData = new FormData(event.target);
             const employeeData = Object.fromEntries(formData.entries());
 
+            try {
+                let response;
+                if (editingEmployeeId) {
+                    response = await fetch(`/api/employees/${editingEmployeeId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(employeeData),
+                    });
+                } else {
+                    response = await fetch('/api/employees', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(employeeData),
+                    });
+                }
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert(editingEmployeeId ? 'Employee updated successfully!' : 'Employee added successfully!');
+                    closeEmployeeForm();
+                    loadEmployees();
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            } catch (error) {
+                alert('Error saving employee: ' + error.message);
+            }
+        }
+
+        async function deleteEmployee(employeeId) {
+            const employee = employees.find(item => item.employee_id === employeeId);
+            const fullName = employee ? `${employee.first_name} ${employee.last_name}` : employeeId;
+            const confirmed = confirm(`Are you sure you want to deactivate ${fullName}?`);
+            if (!confirmed) {
+                return;
+            }
+
+            try {
             try {
                 let response;
                 if (editingEmployeeId) {
@@ -254,39 +279,24 @@
             }
 
             const employeeCards = employeeList.map(employee => {
-                const firstName = (employee.first_name || '').trim();
-                const lastName = (employee.last_name || '').trim();
-                const fullName = `${firstName} ${lastName}`.trim() || 'Unknown Employee';
-                const initials = `${firstName.charAt(0) || ''}${lastName.charAt(0) || ''}` || '??';
-                const position = employee.position || 'No Position';
-                const department = employee.department || 'No Department';
-                const email = employee.email || 'No Email';
-                const employeeId = employee.employee_id || 'N/A';
-                const status = employee.status || 'unknown';
-                const baseSalary = Number(employee.base_salary);
-                const salaryText = Number.isFinite(baseSalary)
-                    ? `$${baseSalary.toFixed(2)}/month`
-                    : 'Salary unavailable';
-
+                const fullName = `${employee.first_name} ${employee.last_name}`;
                 return `
                     <div class="employee-card">
                         <div class="employee-avatar">
-                            ${initials}
+                            ${employee.first_name.charAt(0)}${employee.last_name.charAt(0)}
                         </div>
                         <div class="employee-info">
                             <h4>${fullName}</h4>
-                            <p class="employee-position">${position}</p>
-                            <p class="employee-department">${department}</p>
-                            <p class="employee-email">${email}</p>
-                            <p class="employee-id">ID: ${employeeId}</p>
-                            <p class="employee-status">Status: ${status}</p>
-                            <p class="employee-salary">${salaryText}</p>
+                            <p class="employee-position">${employee.position}</p>
+                            <p class="employee-department">${employee.department || 'No Department'}</p>
+                            <p class="employee-email">${employee.email}</p>
+                            <p class="employee-salary">$${parseFloat(employee.base_salary).toFixed(2)}/month</p>
                         </div>
                         <div class="employee-actions">
-                            <button class="btn btn-small btn-secondary" onclick="viewEmployeeId('${employeeId}')">View ID</button>
-                            <button class="btn btn-small btn-warning" onclick="editEmployee('${employeeId}')">Update</button>
-                            <button class="btn btn-small btn-danger" onclick="deleteEmployee('${employeeId}')">Delete</button>
-                            <button class="btn btn-small btn-primary" onclick="processPayroll('${employeeId}')">Payroll</button>
+                            <button class="btn btn-small btn-secondary" onclick="viewEmployeeId('${employee.employee_id}')">View ID</button>
+                            <button class="btn btn-small btn-warning" onclick="editEmployee('${employee.employee_id}')">Update</button>
+                            <button class="btn btn-small btn-danger" onclick="deleteEmployee('${employee.employee_id}')">Delete</button>
+                            <button class="btn btn-small btn-primary" onclick="processPayroll('${employee.employee_id}')">Payroll</button>
                         </div>
                     </div>
                 `;
@@ -312,23 +322,13 @@
 
         function filterEmployees() {
             const searchTerm = document.getElementById('search-input').value.toLowerCase();
-            const filteredEmployees = employees.filter(employee => {
-                const firstName = (employee.first_name || '').toLowerCase();
-                const lastName = (employee.last_name || '').toLowerCase();
-                const position = (employee.position || '').toLowerCase();
-                const email = (employee.email || '').toLowerCase();
-                const employeeId = (employee.employee_id || '').toLowerCase();
-                const status = (employee.status || '').toLowerCase();
-
-                return (
-                    firstName.includes(searchTerm) ||
-                    lastName.includes(searchTerm) ||
-                    position.includes(searchTerm) ||
-                    email.includes(searchTerm) ||
-                    employeeId.includes(searchTerm) ||
-                    status.includes(searchTerm)
-                );
-            });
+            const filteredEmployees = employees.filter(employee =>
+                employee.first_name.toLowerCase().includes(searchTerm) ||
+                employee.last_name.toLowerCase().includes(searchTerm) ||
+                employee.position.toLowerCase().includes(searchTerm) ||
+                employee.email.toLowerCase().includes(searchTerm) ||
+                employee.employee_id.toLowerCase().includes(searchTerm)
+            );
             displayEmployees(filteredEmployees);
         }
 
