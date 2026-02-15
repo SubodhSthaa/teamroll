@@ -453,6 +453,12 @@ body {
     color: #059669 !important;
 }
 
+.employee-id,
+.employee-status {
+    font-weight: 600;
+    color: #475569 !important;
+}
+
 .employee-actions {
     display: flex;
     flex-wrap: wrap;
