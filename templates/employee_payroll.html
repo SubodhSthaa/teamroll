@@ -130,13 +130,11 @@
                 const data = await response.json();
 
                 if (data.success || data.records) {
-                    const records = data.records || [];
-                    const myPayrolls = records.filter(
-                        record => record.employee_id === currentUser.employee_id
-                    );
-
+                    const myPayrolls = data.records || [];
                     displayPayrollSummary(myPayrolls);
                     displayPayrollRecords(myPayrolls);
+                } else {
+                    throw new Error(data.message || 'Unable to load payroll records');
                 }
             } catch (error) {
                 document.getElementById('payroll-summary').innerHTML =

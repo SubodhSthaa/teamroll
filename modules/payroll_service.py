@@ -82,23 +82,95 @@ class PayrollService:
                 'message': f'Error processing payroll: {str(e)}'
             }
 
-    def get_payroll_summary(self):
-        """Get payroll summary for current month"""
+    def approve_payroll(self, payroll_id, approved_by_user_id=None):
+        """Approve a pending payroll record.
+
+        This transitions status from 'pending' -> 'approved'.
+        """
         try:
-            # Get current month's payroll data
-            current_date = datetime.now()
-            first_day = current_date.replace(day=1)
-            last_day = current_date.replace(day=calendar.monthrange(current_date.year, current_date.month)[1])
-            
+            query = """
+                UPDATE payroll
+                SET status = 'approved'
+                WHERE id = ? AND status = 'pending'
+            """
+            rows = execute_query(query, (payroll_id,))
+
+            # In this project, execute_query returns an int for UPDATE/DELETE (rows affected).
+            affected = rows if isinstance(rows, int) else (1 if rows is not None else 0)
+
+            if affected > 0:
+                return {'success': True, 'message': 'Payroll approved'}
+            return {'success': False, 'message': 'Payroll not found or not pending'}
+        except Exception as e:
+            return {'success': False, 'message': f'Error approving payroll: {str(e)}'}
+
+    def get_payroll_for_employee(self, employee_id):
+        """Get payroll records for a single employee (all history)."""
+        try:
             query = '''
-                SELECT p.*, e.first_name, e.last_name, e.position
+                SELECT
+                    p.*,
+                    COALESCE(e.first_name, 'Deleted') AS first_name,
+                    COALESCE(e.last_name, 'Employee') AS last_name,
+                    e.position
                 FROM payroll p
-                JOIN employees e ON p.employee_id = e.employee_id
-                WHERE p.pay_period_start >= ? AND p.pay_period_end <= ?
+                LEFT JOIN employees e ON p.employee_id = e.employee_id
+                WHERE p.employee_id = ?
                 ORDER BY p.created_at DESC
             '''
+            records = execute_query(query, (employee_id,))
+
+            total_gross = sum(record['gross_pay'] for record in records)
+            total_net = sum(record['net_pay'] for record in records)
+            total_taxes = sum(record['tax_deductions'] for record in records)
+
+            return {
+                'success': True,
+                'summary': {
+                    'total_payslips': len(records),
+                    'total_gross_pay': total_gross,
+                    'total_net_pay': total_net,
+                    'total_tax_deductions': total_taxes
+                },
+                'records': records
+            }
+        except Exception as e:
+            return {'success': False, 'message': f'Error fetching employee payroll: {str(e)}'}
+
+    def get_payroll_summary(self):
+        """Get payroll summary for current month.
+
+        The dashboard and payroll pages are meant to show *recently processed* payrolls.
+        Filtering by pay-period boundaries can hide valid records (e.g., overlapping periods).
+        So we filter by payroll.created_at for the current month.
+
+        We also use a LEFT JOIN so payroll records still appear even if an employee record
+        was permanently deleted.
+        """
+        try:
+            # Current month's date window (server local time)
+            current_date = datetime.now()
+            first_day = current_date.replace(day=1)
+            last_day = current_date.replace(
+                day=calendar.monthrange(current_date.year, current_date.month)[1]
+            )
             
-            payroll_records = execute_query(query, (first_day.strftime('%Y-%m-%d'), last_day.strftime('%Y-%m-%d')))
+            query = '''
+                SELECT
+                    p.*,
+                    COALESCE(e.first_name, 'Deleted') AS first_name,
+                    COALESCE(e.last_name, 'Employee') AS last_name,
+                    e.position
+                FROM payroll p
+                LEFT JOIN employees e ON p.employee_id = e.employee_id
+                WHERE DATE(p.created_at) >= ? AND DATE(p.created_at) <= ?
+                ORDER BY p.created_at DESC
+            '''
+
+            payroll_records = execute_query(
+                query,
+                (first_day.strftime('%Y-%m-%d'), last_day.strftime('%Y-%m-%d'))
+            )
             
             # Calculate totals
             total_gross = sum(record['gross_pay'] for record in payroll_records)
@@ -126,9 +198,14 @@ class PayrollService:
         """Generate payslip for specific employee and payroll period"""
         try:
             query = '''
-                SELECT p.*, e.first_name, e.last_name, e.position, e.department
+                SELECT
+                    p.*,
+                    COALESCE(e.first_name, 'Deleted') AS first_name,
+                    COALESCE(e.last_name, 'Employee') AS last_name,
+                    e.position,
+                    e.department
                 FROM payroll p
-                JOIN employees e ON p.employee_id = e.employee_id
+                LEFT JOIN employees e ON p.employee_id = e.employee_id
                 WHERE p.id = ? AND p.employee_id = ?
             '''
             

@@ -192,49 +192,6 @@
             }
 
             try {
-            try {
-                let response;
-                if (editingEmployeeId) {
-                    response = await fetch(`/api/employees/${editingEmployeeId}`, {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify(employeeData),
-                    });
-                } else {
-                    response = await fetch('/api/employees', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify(employeeData),
-                    });
-                }
-
-                const result = await response.json();
-
-                if (result.success) {
-                    alert(editingEmployeeId ? 'Employee updated successfully!' : 'Employee added successfully!');
-                    closeEmployeeForm();
-                    loadEmployees();
-                } else {
-                    alert('Error: ' + result.message);
-                }
-            } catch (error) {
-                alert('Error saving employee: ' + error.message);
-            }
-        }
-
-        async function deleteEmployee(employeeId) {
-            const employee = employees.find(item => item.employee_id === employeeId);
-            const fullName = employee ? `${employee.first_name} ${employee.last_name}` : employeeId;
-            const confirmed = confirm(`Are you sure you want to deactivate ${fullName}?`);
-            if (!confirmed) {
-                return;
-            }
-
-            try {
                 const response = await fetch(`/api/employees/${employeeId}`, {
                     method: 'DELETE',
                 });

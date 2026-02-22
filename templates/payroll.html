@@ -242,11 +242,37 @@
                     </div>
                     <div class="record-status">
                         <span class="status-badge status-${record.status}">${record.status}</span>
+                        ${record.status === 'pending' ? `
+                            <button class="btn btn-small btn-primary" style="margin-left: 0.5rem;" onclick="approvePayroll(${record.id})">
+                                Approve
+                            </button>
+                        ` : ''}
                     </div>
                 </div>
             `).join('');
             
             container.innerHTML = recordsHtml;
+        }
+
+        async function approvePayroll(payrollId) {
+            const confirmed = confirm('Approve this payroll? The employee will see it as approved.');
+            if (!confirmed) return;
+
+            try {
+                const response = await fetch(`/api/payroll/approve/${payrollId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                const result = await response.json();
+                if (result.success) {
+                    loadPayrollData();
+                } else {
+                    alert('Error: ' + (result.message || 'Unable to approve payroll'));
+                }
+            } catch (error) {
+                alert('Error approving payroll: ' + error.message);
+            }
         }
 
         // Filter employees (for future use)

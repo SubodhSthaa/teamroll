@@ -181,7 +181,20 @@ class TeamRollHandler(BaseHTTPRequestHandler):
                 employee = self.hr_service.get_employee(emp_id)
                 self.send_json_response(employee)
             elif path == '/api/payroll':
-                payroll_data = self.payroll_service.get_payroll_summary()
+                user = self.get_current_user()
+                if not user:
+                    self.send_json_response({'success': False, 'message': 'Authentication required'}, 401)
+                    return
+
+                # Admins can see the org-wide payroll summary; employees can only see their own records.
+                if user['role'] == 'admin':
+                    payroll_data = self.payroll_service.get_payroll_summary()
+                else:
+                    if not user.get('employee_id'):
+                        self.send_json_response({'success': False, 'message': 'Employee profile not linked'}, 400)
+                        return
+                    payroll_data = self.payroll_service.get_payroll_for_employee(user['employee_id'])
+
                 self.send_json_response(payroll_data)
             elif path == '/api/attendance':
                 date = query_params.get('date', [None])[0]
@@ -251,7 +264,19 @@ class TeamRollHandler(BaseHTTPRequestHandler):
                 result = self.hr_service.add_employee(data)
                 self.send_json_response(result)
             elif path == '/api/payroll/process':
+                user = self.get_current_user()
+                if not user or user['role'] != 'admin':
+                    self.send_json_response({'success': False, 'message': 'Admin access required'}, 403)
+                    return
                 result = self.payroll_service.process_payroll(data)
+                self.send_json_response(result)
+            elif path.startswith('/api/payroll/approve/'):
+                user = self.get_current_user()
+                if not user or user['role'] != 'admin':
+                    self.send_json_response({'success': False, 'message': 'Admin access required'}, 403)
+                    return
+                payroll_id = path.split('/')[-1]
+                result = self.payroll_service.approve_payroll(payroll_id, approved_by_user_id=user.get('id'))
                 self.send_json_response(result)
             elif path == '/api/attendance/checkin':
                 result = self.attendance_service.check_in(data['employee_id'])
@@ -348,7 +373,7 @@ class TeamRollHandler(BaseHTTPRequestHandler):
                     return
 
                 emp_id = path.split('/')[-1]
-                result = self.hr_service.deactivate_employee(emp_id)
+                result = self.hr_service.delete_employee(emp_id)
                 self.send_json_response(result)
             else:
                 self.send_error(404)

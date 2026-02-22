@@ -50,17 +50,32 @@ class HRService:
                 'message': f'Error adding employee: {str(e)}'
             }
 
-    def get_all_employees(self):
-        """Get all employees"""
+    def get_all_employees(self, include_inactive: bool = False):
+        """Get employees.
+
+        Default behavior is to return only active employees so deactivated
+        ("deleted") employees no longer appear in the UI.
+
+        Set include_inactive=True when you explicitly want both active and
+        inactive employees.
+        """
         try:
-            query = '''
-                SELECT * FROM employees
-                ORDER BY
-                    CASE WHEN status = 'active' THEN 0 ELSE 1 END,
-                    last_name,
-                    first_name
-            '''
-            employees = execute_query(query)
+            if include_inactive:
+                query = '''
+                    SELECT * FROM employees
+                    ORDER BY
+                        CASE WHEN status = 'active' THEN 0 ELSE 1 END,
+                        last_name,
+                        first_name
+                '''
+                employees = execute_query(query)
+            else:
+                query = '''
+                    SELECT * FROM employees
+                    WHERE status = 'active'
+                    ORDER BY last_name, first_name
+                '''
+                employees = execute_query(query)
             
             return {
                 'success': True,
@@ -157,4 +172,38 @@ class HRService:
             return {
                 'success': False,
                 'message': f'Error deactivating employee: {str(e)}'
+            }
+
+    def delete_employee(self, employee_id):
+        """Permanently delete an employee (hard delete).
+
+        This removes the employee row and also deletes dependent rows in
+        payroll, attendance, users, and pending_registrations that reference
+        the employee_id to avoid orphaned data.
+        """
+        try:
+            # Delete dependent records first
+            execute_query('DELETE FROM payroll WHERE employee_id = ?', (employee_id,))
+            execute_query('DELETE FROM attendance WHERE employee_id = ?', (employee_id,))
+            execute_query('DELETE FROM users WHERE employee_id = ?', (employee_id,))
+            execute_query('DELETE FROM pending_registrations WHERE employee_id = ?', (employee_id,))
+
+            # Delete the employee record
+            rows_affected = execute_query('DELETE FROM employees WHERE employee_id = ?', (employee_id,))
+
+            if rows_affected > 0:
+                return {
+                    'success': True,
+                    'message': 'Employee deleted permanently'
+                }
+            else:
+                return {
+                    'success': False,
+                    'message': 'Employee not found'
+                }
+
+        except Exception as e:
+            return {
+                'success': False,
+                'message': f'Error deleting employee: {str(e)}'
             }

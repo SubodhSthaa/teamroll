@@ -268,12 +268,17 @@
                 const payrollData = await payrollResponse.json();
 
                 if (payrollData.success || payrollData.records) {
-                    const myPayrolls = (payrollData.records || []).filter(r => r.employee_id === currentUser.employee_id);
-                    if (myPayrolls.length > 0) {
-                        const latestPayroll = myPayrolls.sort((a, b) =>
+                    const myPayrolls = payrollData.records || [];
+                    const approved = myPayrolls.filter(p => p.status === 'approved' || p.status === 'paid');
+
+                    if (approved.length > 0) {
+                        const latestPayroll = approved.sort((a, b) =>
                             new Date(b.pay_period_end) - new Date(a.pay_period_end)
                         )[0];
                         document.getElementById('last-pay').textContent = `$${parseFloat(latestPayroll.net_pay).toFixed(2)}`;
+                    } else if (myPayrolls.length > 0) {
+                        // Payroll exists but not approved yet
+                        document.getElementById('last-pay').textContent = 'Pending approval';
                     }
                 }
             } catch (error) {
